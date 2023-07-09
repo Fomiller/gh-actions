@@ -29,7 +29,6 @@ on:
         required: false
         type: string
         default: json
-
           
     secrets:
       aws-access-key-id:
@@ -43,7 +42,7 @@ on:
 
 env:
   environment: ${{ inputs.environment }}
-  infra-dir: ${{ inputs.infra-dir}}/${{ inputs.aws-default-region }}
+  infra-dir: ${{ inputs.infra-dir }}/${{ inputs.aws-default-region }}
         
 jobs:
   Pre-check:
@@ -60,7 +59,7 @@ jobs:
   Deploy-aws-infra:
     needs: Pre-check
     if: ${{ (github.event.pull_request.merged == true || github.event_name == 'push') && needs.pre-check.outputs.should_skip != 'true' }}
-    name: 'Deploy AWS Infra ${{ env.environment }}'
+    name: 'Deploy AWS Infra'
     runs-on: ubuntu-latest
     steps:
       # Checkout the repository to the GitHub Actions runner
