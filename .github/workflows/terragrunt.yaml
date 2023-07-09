@@ -1,0 +1,110 @@
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      
+      tg-version:
+        required: false
+        type: string
+        default: 0.42.8
+            
+      tf-version:
+        required: false
+        type: string
+        default: latest
+            
+      infra-dir:
+        required: false
+        type: string
+        default: infra
+            
+      aws-default-region:
+        required: false
+        type: string
+        default: us-east-1
+      
+      aws-default-output:
+        required: false
+        type: string
+        default: json
+
+          
+    secrets:
+      aws-access-key-id:
+        required: true
+      aws-secret-access-key:
+        required: true
+      aws-account-id:
+        required: true
+      aws-deployer-role:
+        required: true
+
+env:
+  environment: ${{ inputs.environment }}
+  infra-dir: ${{ inputs.infra-dir}}/${{ inputs.aws-default-region }}
+        
+jobs:
+  Pre-check:
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@v5
+        with:
+          cancel_others: 'true'
+          concurrent_skipping: 'same_content_newer'
+
+  Deploy-aws-infra:
+    needs: Pre-check
+    if: ${{ (github.event.pull_request.merged == true || github.event_name == 'push') && needs.pre-check.outputs.should_skip != 'true' }}
+    name: 'Deploy AWS Infra ${{ env.environment }}'
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout the repository to the GitHub Actions runner
+    - name: Checkout
+      uses: actions/checkout@v2
+          
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.aws-access-key-id }}
+        aws-secret-access-key: ${{ secrets.aws-secret-access-key }}
+        role-to-assume: arn:aws:iam::${{ secrets.aws-account-id }}:role/${{ secrets.aws-deployer-role }}
+        aws-region: ${{ inputs.aws-default-region }}
+        role-duration-seconds: 1200
+
+    # Install the latest version of Terragrunt CLI and configure the Terragrunt CLI configuration file with a Terragrunt Cloud user API toke
+    - name: Install Terraform ${{ inputs.tf-version }}
+      uses: hashicorp/setup-Terraform@v1
+      with:
+        terraform_version: ${{ inputs.tf-version }}
+        terraform_wrapper: false
+    
+    # use if you need to debug workflow
+    # - name: DEBUG
+    #   uses: lhotari/action-upterm@v1
+    #   with:
+    #      limit-access-to-actor: true
+    #      limit-access-to-users: Fomiller
+          
+    - name: Install Terragrunt ${{ inputs.tg-version }}
+      run: |
+        sudo wget -q -O /bin/terragrunt "https://github.com/gruntwork-io/terragrunt/releases/download/v${{ inputs.tg-version }}/terragrunt_linux_amd64"
+        sudo chmod +x /bin/terragrunt
+
+    # Initialize a new or existing Terragrunt working directory by creating initial files,  loading any remote state, downloading modules, etc.
+    - name: Terragrunt Validate
+      continue-on-error: false
+      run: |
+        terragrunt run-all validate \
+        --terragrunt-working-dir ${{ env.infra-dir }}/${{ env.environment }}
+        
+    - name: Terragrunt Apply
+      continue-on-error: false
+      run: |
+        terragrunt run-all apply \
+        --terragrunt-working-dir ${{ env.infra-dir }}/${{ env.environment }} \
+        --terragrunt-non-interactive
