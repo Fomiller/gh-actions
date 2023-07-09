@@ -30,9 +30,6 @@ on:
         type: string
         default: json
       
-      gmail_pass:
-        required: false
-        type: string
           
     secrets:
       aws-access-key-id:
@@ -43,11 +40,13 @@ on:
         required: true
       aws-deployer-role:
         required: true
+      gmail_pass:
+        required: false
 
 env:
   environment: ${{ inputs.environment }}
   infra-dir: ${{ inputs.infra-dir }}/${{ inputs.aws-default-region }}
-  TF_VAR_gmail_congocoon_pass: ${{ inputs.gmail_pass }}  
+  TF_VAR_gmail_congocoon_pass: ${{ secrets.gmail_pass }}  
         
 jobs:
   Pre-check:
