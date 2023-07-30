@@ -32,6 +32,14 @@ on:
       
           
     secrets:
+      aws-access-key-id:
+        required: true
+      aws-secret-access-key:
+        required: true
+      aws-account-id:
+        required: true
+      aws-deployer-role:
+        required: true
       gmail_pass:
         required: false
 
@@ -67,9 +75,9 @@ jobs:
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v1
       with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOYER_ROLE }}
+        aws-access-key-id: ${{ secrets.aws-access-key-id }}
+        aws-secret-access-key: ${{ secrets.aws-secret-access-key }}
+        role-to-assume: arn:aws:iam::${{ secrets.aws-account-id }}:role/${{ secrets.aws-deployer-role }}
         aws-region: ${{ inputs.aws-default-region }}
         role-duration-seconds: 1200
 
