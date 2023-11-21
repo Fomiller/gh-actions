@@ -65,7 +65,7 @@ jobs:
     if: ${{ (github.event.pull_request.merged == true || github.event_name == 'push') && needs.pre-check.outputs.should_skip != 'true' }}
     name: 'Deploy AWS Infra'
     runs-on: ubuntu-latest
-    environment: ${{ secrets.ENVIRONMENT }}
+    environment: ${{ inputs.environment }}
     steps:
       # Checkout the repository to the GitHub Actions runner
     - name: Checkout
