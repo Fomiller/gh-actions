@@ -16,7 +16,8 @@ on:
           
       go-version:
         required: false
-        type: 1.21.4
+        type: string
+        default: 1.21.4
           
 jobs:
   Build-Lambda:
