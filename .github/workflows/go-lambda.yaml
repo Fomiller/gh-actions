@@ -17,22 +17,22 @@ on:
       go-version:
         required: false
         type: string
-        default: 1.21.4
+        default: "1.21.4"
           
 jobs:
   Build-Lambda:
-    needs: pre-check
-    if: ${{ (github.event.pull_request.merged == true || github.event_name == 'push') && needs.pre-check.outputs.should_skip != 'true' }}
-    runs-on: ubuntu-latest
-      
-    # strategy:
-    #   fail-fast: true
-    #   matrix:
-    #     include:
-    #       - src: lambda/hello/main.go
-    #         output: lambda/bin/lambda_hello.exe
-    #       - src: lambda/twitch/webhookCallback/main.go
-    #         output: lambda/bin/lambda_webhook.exe
+    # needs: pre-check
+    # if: ${{ (github.event.pull_request.merged == true || github.event_name == 'push') && needs.pre-check.outputs.should_skip != 'true' }}
+    # runs-on: ubuntu-latest
+    #   
+    # # strategy:
+    # #   fail-fast: true
+    # #   matrix:
+    # #     include:
+    # #       - src: lambda/hello/main.go
+    # #         output: lambda/bin/lambda_hello.exe
+    # #       - src: lambda/twitch/webhookCallback/main.go
+    # #         output: lambda/bin/lambda_webhook.exe
           
     steps:
     - name: Checkout
