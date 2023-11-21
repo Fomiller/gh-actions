@@ -53,20 +53,7 @@ on:
         required: false
 
 jobs:
-  Pre-check:
-    runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
-    outputs:
-      should_skip: ${{ steps.skip_check.outputs.should_skip }}
-    steps:
-      - id: skip_check
-        uses: fkirc/skip-duplicate-actions@v5
-        with:
-          cancel_others: 'true'
-          concurrent_skipping: 'same_content_newer'
-
   Deploy-aws-infra:
-    needs: Pre-check
     if: ${{ (github.event.pull_request.merged == true || github.event_name == 'push') && needs.pre-check.outputs.should_skip != 'true' }}
     name: 'Deploy AWS Infra'
     runs-on: ubuntu-latest
