@@ -50,7 +50,7 @@ env:
 jobs:
   Pre-check:
     runs-on: ubuntu-latest
-    environment: ${{ secrets.ENVIRONMENT }}
+    environment: ${{ inputs.environment }}
     outputs:
       should_skip: ${{ steps.skip_check.outputs.should_skip }}
     steps:
