@@ -103,5 +103,5 @@ jobs:
       continue-on-error: false
       run: |
         terragrunt run-all apply \
-        --terragrunt-working-dir ${{ env.infra-dir }} \
+        --terragrunt-working-dir ${{ inputs.infra-dir }} \
         --terragrunt-non-interactive
