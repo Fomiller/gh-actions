@@ -93,9 +93,9 @@ jobs:
     - name: Terragrunt Apply
       continue-on-error: false
       env:
-        TF_VAR_ACCOUNT_ID: ${{secrets.AWS_ACCOUNT_ID}}
-        TF_VAR_ENV:  ${{secrets.ENVIRONMENT}}
-        TF_VAR_REGION: ${{secrets.AWS_DEFAULT_REGION}}
+        TF_VAR_ACCOUNT_ID: ${{secrets.AWS_ACCOUNT_ID }}
+        TF_VAR_ENV:  ${{ inputs.environment }}
+        TF_VAR_REGION: ${{ inputs.aws-default-region }}
       run: |
         terragrunt run-all apply \
         --terragrunt-working-dir=${{ inputs.infra-dir }} \
