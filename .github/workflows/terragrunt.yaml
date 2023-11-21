@@ -67,7 +67,6 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
-      # Checkout the repository to the GitHub Actions runner
     - name: Checkout
       uses: actions/checkout@v2
           
@@ -80,20 +79,12 @@ jobs:
         aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
         role-duration-seconds: 1200
 
-    # Install the latest version of Terragrunt CLI and configure the Terragrunt CLI configuration file with a Terragrunt Cloud user API toke
     - name: Install Terraform ${{ inputs.tf-version }}
       uses: hashicorp/setup-Terraform@v1
       with:
         terraform_version: ${{ inputs.tf-version }}
         terraform_wrapper: false
     
-    # use if you need to debug workflow
-    # - name: DEBUG
-    #   uses: lhotari/action-upterm@v1
-    #   with:
-    #      limit-access-to-actor: true
-    #      limit-access-to-users: Fomiller
-          
     - name: Install Terragrunt ${{ inputs.tg-version }}
       run: |
         sudo wget -q -O /bin/terragrunt "https://github.com/gruntwork-io/terragrunt/releases/download/v${{ inputs.tg-version }}/terragrunt_linux_amd64"
@@ -101,7 +92,19 @@ jobs:
 
     - name: Terragrunt Apply
       continue-on-error: false
+      env:
+        TF_VAR_ACCOUNT_ID: ${{secrets.AWS_ACCOUNT_ID}}
+        TF_VAR_ENV:  ${{secrets.ENVIRONMENT}}
+        TF_VAR_REGION: ${{secrets.AWS_DEFAULT_REGION}}
       run: |
         terragrunt run-all apply \
-        --terragrunt-working-dir ${{ inputs.infra-dir }} \
+        --terragrunt-working-dir=${{ inputs.infra-dir }} \
         --terragrunt-non-interactive
+        
+    # use if you need to debug workflow
+    # - name: DEBUG
+    #   uses: lhotari/action-upterm@v1
+    #   with:
+    #      limit-access-to-actor: true
+    #      limit-access-to-users: Fomiller
+          
