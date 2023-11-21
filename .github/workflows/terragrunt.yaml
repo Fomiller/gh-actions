@@ -97,7 +97,7 @@ jobs:
       uses: dopplerhq/cli-action@v2
       
     - name: Doppler Setup
-      run: doppler -p ${{inputs.doppler-project}} -c ${{inputs.environment}}
+      run: doppler setup -p ${{inputs.doppler-project}} -c ${{inputs.environment}}
       env:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
 
