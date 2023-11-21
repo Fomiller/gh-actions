@@ -40,8 +40,6 @@ jobs:
         
     - name: Set up Go
       uses: actions/setup-go@v3
-      with:
-        go-version: ${{inputs.go-version}}
 
     - name: Build Executables
       run: go build -o ${{ inputs.infra-dir }}/${{inputs.lambda_output}} src/cmd/${{inputs.lambda_src}}
