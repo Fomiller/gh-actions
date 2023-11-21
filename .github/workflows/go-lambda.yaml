@@ -1,0 +1,57 @@
+on:
+  workflow_call:
+    inputs:
+      
+      lambda_src:
+        required: true
+        type: string
+          
+      lambda_output:
+        required: true
+        type: string
+      
+      infra-dir:
+        required: true
+        type: string
+          
+      go-version:
+        required: false
+        type: 1.21.4
+          
+jobs:
+  Build-Lambda:
+    needs: pre-check
+    if: ${{ (github.event.pull_request.merged == true || github.event_name == 'push') && needs.pre-check.outputs.should_skip != 'true' }}
+    runs-on: ubuntu-latest
+      
+    # strategy:
+    #   fail-fast: true
+    #   matrix:
+    #     include:
+    #       - src: lambda/hello/main.go
+    #         output: lambda/bin/lambda_hello.exe
+    #       - src: lambda/twitch/webhookCallback/main.go
+    #         output: lambda/bin/lambda_webhook.exe
+          
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+        
+    - name: Set up Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: ${{inputs.go-version}}
+
+    - name: Build Executables
+      run: go build -o ${{ inputs.infra-dir }}/${{inputs.lambda_output}} src/cmd/${{inputs.lambda_src}}
+
+    - name: Upload Artifacts
+      id: cache
+      uses: actions/upload-artifact@v3
+      with:
+        name: lambdas
+        path: ${{ inputs.infra-dir }}/lambda/bin/
+          
+    # - name: Test
+    #   run: go test -v ./...
+

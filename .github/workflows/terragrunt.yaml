@@ -8,6 +8,11 @@ on:
       doppler-project:
         required: true
         type: string
+          
+      download-artifacts:
+        required: false 
+        type: boolean
+        default: false
       
       tg-version:
         required: false
@@ -69,6 +74,13 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
+        
+    - name: Download Artifacts
+      uses: actions/download-artifact@v3
+      if: ${{inputs.download-artifacts}} == true
+      with:
+        name: lambdas
+        path: ${{inputs.infra-dir}}/lambda/bin/
           
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v1
