@@ -2,7 +2,7 @@ on:
   workflow_call:
     inputs:
       environment:
-        required: true
+        required: false
         type: string
       
       tg-version:
@@ -32,26 +32,25 @@ on:
       
           
     secrets:
-      aws-access-key-id:
-        required: true
-      aws-secret-access-key:
-        required: true
-      aws-account-id:
-        required: true
-      aws-deployer-role:
-        required: true
+      # aws-access-key-id:
+      #   required: true
+      # aws-secret-access-key:
+      #   required: true
+      # aws-account-id:
+      #   required: true
+      # aws-deployer-role:
+      #   required: true
       gmail_pass:
         required: false
 
 env:
-  environment: ${{ inputs.environment }}
-  infra-dir: ${{ inputs.infra-dir }}/${{ inputs.aws-default-region }}
+  # environment: ${{ secrets.ENVIRONMENT }}
   TF_VAR_gmail_congocoon_pass: ${{ secrets.gmail_pass }}  
         
 jobs:
   Pre-check:
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
+    environment: ${{ secrets.ENVIRONMENT }}
     outputs:
       should_skip: ${{ steps.skip_check.outputs.should_skip }}
     steps:
@@ -66,7 +65,7 @@ jobs:
     if: ${{ (github.event.pull_request.merged == true || github.event_name == 'push') && needs.pre-check.outputs.should_skip != 'true' }}
     name: 'Deploy AWS Infra'
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
+    environment: ${{ secrets.ENVIRONMENT }}
     steps:
       # Checkout the repository to the GitHub Actions runner
     - name: Checkout
@@ -75,10 +74,10 @@ jobs:
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v1
       with:
-        aws-access-key-id: ${{ secrets.aws-access-key-id }}
-        aws-secret-access-key: ${{ secrets.aws-secret-access-key }}
-        role-to-assume: arn:aws:iam::${{ secrets.aws-account-id }}:role/${{ secrets.aws-deployer-role }}
-        aws-region: ${{ inputs.aws-default-region }}
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOYER_ROLE }}
+        aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
         role-duration-seconds: 1200
 
     # Install the latest version of Terragrunt CLI and configure the Terragrunt CLI configuration file with a Terragrunt Cloud user API toke
@@ -100,16 +99,9 @@ jobs:
         sudo wget -q -O /bin/terragrunt "https://github.com/gruntwork-io/terragrunt/releases/download/v${{ inputs.tg-version }}/terragrunt_linux_amd64"
         sudo chmod +x /bin/terragrunt
 
-    # Initialize a new or existing Terragrunt working directory by creating initial files,  loading any remote state, downloading modules, etc.
-    - name: Terragrunt Validate
-      continue-on-error: false
-      run: |
-        terragrunt run-all validate \
-        --terragrunt-working-dir ${{ env.infra-dir }}/${{ env.environment }}
-        
     - name: Terragrunt Apply
       continue-on-error: false
       run: |
         terragrunt run-all apply \
-        --terragrunt-working-dir ${{ env.infra-dir }}/${{ env.environment }} \
+        --terragrunt-working-dir ${{ env.infra-dir }} \
         --terragrunt-non-interactive
