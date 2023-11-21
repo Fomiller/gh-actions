@@ -5,7 +5,7 @@ on:
         required: false
         type: string
           
-      dopper-project:
+      doppler-project:
         required: true
         type: string
       
