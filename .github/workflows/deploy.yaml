@@ -89,3 +89,5 @@ jobs:
       continue-on-error: false
       run: |
         terragrunt run-all apply --terragrunt-working-dir ${{env.INFRA_DIR}} --terragrunt-non-interactive
+        
+

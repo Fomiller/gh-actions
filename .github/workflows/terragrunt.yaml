@@ -4,6 +4,10 @@ on:
       environment:
         required: false
         type: string
+          
+      dopper-project:
+        required: true
+        type: string
       
       tg-version:
         required: false
@@ -43,10 +47,6 @@ on:
       gmail_pass:
         required: false
 
-env:
-  # environment: ${{ secrets.ENVIRONMENT }}
-  TF_VAR_gmail_congocoon_pass: ${{ secrets.gmail_pass }}  
-        
 jobs:
   Pre-check:
     runs-on: ubuntu-latest
@@ -89,17 +89,22 @@ jobs:
       run: |
         sudo wget -q -O /bin/terragrunt "https://github.com/gruntwork-io/terragrunt/releases/download/v${{ inputs.tg-version }}/terragrunt_linux_amd64"
         sudo chmod +x /bin/terragrunt
+        
+    - name: Install Just
+      uses: extractions/setup-just@v1
+        
+    - name: Install Doppler
+      uses: dopplerhq/cli-action@v2
+      
+    - name: Doppler Setup
+      run: doppler -p ${{inputs.doppler-project}} -c ${{inputs.environment}}
+      env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
 
     - name: Terragrunt Apply
       continue-on-error: false
-      env:
-        TF_VAR_ACCOUNT_ID: ${{secrets.AWS_ACCOUNT_ID }}
-        TF_VAR_ENV:  ${{ inputs.environment }}
-        TF_VAR_REGION: ${{ inputs.aws-default-region }}
       run: |
-        terragrunt run-all apply \
-        --terragrunt-working-dir=${{ inputs.infra-dir }} \
-        --terragrunt-non-interactive
+        just apply-all
         
     # use if you need to debug workflow
     # - name: DEBUG
