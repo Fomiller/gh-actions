@@ -60,7 +60,7 @@ jobs:
     environment: ${{ inputs.environment }}
     steps:
     - name: echo environment
-      run: echo "{{inputs.environment}}" 
+      run: echo inputs.environment
         
     steps:
     - name: Checkout
