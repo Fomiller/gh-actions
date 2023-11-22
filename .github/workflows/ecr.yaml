@@ -44,7 +44,7 @@ jobs:
             
     - name: Create Unique image tag
       id: vars
-      run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+      run: echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
           
     - name: Build and push
       uses: docker/build-push-action@v4
@@ -58,5 +58,5 @@ jobs:
           TWITCH_CLIENT_SECRETS=${{secrets.TWITCH_CLIENT_SECRETS}}
         tags: |
           ${{env.ECR_REGISTRY}}/${{inputs.repo-prefix}}-${{inputs.repo}}:latest
-          ${{env.ECR_REGISTRY}}/${{inputs.repo-prefix}}-${{inputs.repo}}:$short_sha
+          ${{env.ECR_REGISTRY}}/${{inputs.repo-prefix}}-${{inputs.repo}}:env.SHORT_SHA
 
