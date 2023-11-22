@@ -30,7 +30,7 @@ jobs:
 
     - name: Build Binary
       run: |
-        env GOARCH=arm64 go build \
+        env GOOS=linux GOARCH=arm64 go build \
         -o ${{ inputs.infra-dir }}/${{inputs.lambda_output}} \
         src/cmd/${{inputs.lambda_src}}
 
