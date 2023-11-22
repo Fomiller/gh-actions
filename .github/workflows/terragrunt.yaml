@@ -58,11 +58,12 @@ jobs:
     name: 'Deploy AWS Infra'
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
+          
     steps:
     - name: echo environment
-      run: echo inputs.environment
-        
-    steps:
+      run: |
+        echo "ENVIRONMENT: ${{ inputs.environment }}"  
+          
     - name: Checkout
       uses: actions/checkout@v2
         
