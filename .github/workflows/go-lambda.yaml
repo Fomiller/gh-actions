@@ -1,7 +1,6 @@
 on:
   workflow_call:
     inputs:
-      
       lambda_src:
         required: true
         type: string

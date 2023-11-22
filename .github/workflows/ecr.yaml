@@ -1,10 +1,12 @@
 on:
   workflow_call:
     inputs:
+      environment:
+        required: false
+        type: string
       repo:
         required: true
         type: string
-          
       repo-prefix:
         required: true
         type: string
@@ -14,7 +16,7 @@ jobs:
     name: 'Build/Deploy ECR images'
     runs-on: ubuntu-latest
     needs: Deploy-infra
-    environment: dev
+    environment: ${{ inputs.environment }}
     # if: ${{ (github.event.pull_request.merged == true || github.event_name == 'push') && needs.pre-check.outputs.should_skip != 'true' }}
         
     steps:
