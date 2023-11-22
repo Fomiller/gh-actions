@@ -60,10 +60,6 @@ jobs:
     environment: ${{ inputs.environment }}
           
     steps:
-    - name: echo environment
-      run: |
-        echo "ENVIRONMENT: ${{ inputs.environment }}"  
-          
     - name: Checkout
       uses: actions/checkout@v2
         
