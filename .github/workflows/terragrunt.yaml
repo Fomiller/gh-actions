@@ -80,7 +80,7 @@ jobs:
         role-duration-seconds: 1200
 
     - name: Install Terraform ${{ inputs.tf-version }}
-      uses: hashicorp/setup-Terraform@v1
+      uses: hashicorp/setup-Terraform@v2
       with:
         terraform_version: ${{ inputs.tf-version }}
         terraform_wrapper: false
