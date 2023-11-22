@@ -15,7 +15,6 @@ jobs:
   Build-deploy-ecr-images:
     name: 'Build/Deploy ECR images'
     runs-on: ubuntu-latest
-    needs: Deploy-infra
     environment: ${{ inputs.environment }}
     # if: ${{ (github.event.pull_request.merged == true || github.event_name == 'push') && needs.pre-check.outputs.should_skip != 'true' }}
         
