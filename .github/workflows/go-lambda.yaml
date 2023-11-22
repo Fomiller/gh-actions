@@ -28,8 +28,11 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v3
 
-    - name: Build Executables
-      run: go build -o ${{ inputs.infra-dir }}/${{inputs.lambda_output}} src/cmd/${{inputs.lambda_src}}
+    - name: Build Binary
+      run: |
+        env GOARCH=arm64 go build \
+        -o ${{ inputs.infra-dir }}/${{inputs.lambda_output}} \
+        src/cmd/${{inputs.lambda_src}}
 
     - name: Upload Artifacts
       id: cache
