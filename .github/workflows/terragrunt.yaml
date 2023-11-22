@@ -2,8 +2,17 @@ on:
   workflow_call:
     inputs:
       environment:
+        required: false
+        type: string
+          
+      doppler-project:
         required: true
         type: string
+          
+      download-artifacts:
+        required: false 
+        type: boolean
+        default: false
       
       tg-version:
         required: false
@@ -32,62 +41,71 @@ on:
       
           
     secrets:
-      aws-access-key-id:
-        required: true
-      aws-secret-access-key:
-        required: true
-      aws-account-id:
-        required: true
-      aws-deployer-role:
-        required: true
+      # aws-access-key-id:
+      #   required: true
+      # aws-secret-access-key:
+      #   required: true
+      # aws-account-id:
+      #   required: true
+      # aws-deployer-role:
+      #   required: true
       gmail_pass:
         required: false
 
-env:
-  environment: ${{ inputs.environment }}
-  infra-dir: ${{ inputs.infra-dir }}/${{ inputs.aws-default-region }}
-  TF_VAR_gmail_congocoon_pass: ${{ secrets.gmail_pass }}  
-        
 jobs:
-  Pre-check:
-    runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
-    outputs:
-      should_skip: ${{ steps.skip_check.outputs.should_skip }}
-    steps:
-      - id: skip_check
-        uses: fkirc/skip-duplicate-actions@v5
-        with:
-          cancel_others: 'true'
-          concurrent_skipping: 'same_content_newer'
-
   Deploy-aws-infra:
-    needs: Pre-check
     if: ${{ (github.event.pull_request.merged == true || github.event_name == 'push') && needs.pre-check.outputs.should_skip != 'true' }}
     name: 'Deploy AWS Infra'
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
+          
     steps:
-      # Checkout the repository to the GitHub Actions runner
     - name: Checkout
       uses: actions/checkout@v2
+        
+    - name: Download Artifacts
+      uses: actions/download-artifact@v3
+      if: ${{inputs.download-artifacts}} == true
+      with:
+        name: lambdas
+        path: ${{inputs.infra-dir}}/lambda/bin/
           
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v1
       with:
-        aws-access-key-id: ${{ secrets.aws-access-key-id }}
-        aws-secret-access-key: ${{ secrets.aws-secret-access-key }}
-        role-to-assume: arn:aws:iam::${{ secrets.aws-account-id }}:role/${{ secrets.aws-deployer-role }}
-        aws-region: ${{ inputs.aws-default-region }}
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOYER_ROLE }}
+        aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
         role-duration-seconds: 1200
 
-    # Install the latest version of Terragrunt CLI and configure the Terragrunt CLI configuration file with a Terragrunt Cloud user API toke
     - name: Install Terraform ${{ inputs.tf-version }}
       uses: hashicorp/setup-Terraform@v1
       with:
         terraform_version: ${{ inputs.tf-version }}
         terraform_wrapper: false
     
+    - name: Install Terragrunt ${{ inputs.tg-version }}
+      run: |
+        sudo wget -q -O /bin/terragrunt "https://github.com/gruntwork-io/terragrunt/releases/download/v${{ inputs.tg-version }}/terragrunt_linux_amd64"
+        sudo chmod +x /bin/terragrunt
+        
+    - name: Install Just
+      uses: extractions/setup-just@v1
+        
+    - name: Install Doppler
+      uses: dopplerhq/cli-action@v2
+      
+    - name: Doppler Setup
+      run: doppler setup -p ${{inputs.doppler-project}} -c ${{inputs.environment}}
+      env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+
+    - name: Terragrunt Apply
+      continue-on-error: false
+      run: |
+        just apply-all
+        
     # use if you need to debug workflow
     # - name: DEBUG
     #   uses: lhotari/action-upterm@v1
@@ -95,21 +113,3 @@ jobs:
     #      limit-access-to-actor: true
     #      limit-access-to-users: Fomiller
           
-    - name: Install Terragrunt ${{ inputs.tg-version }}
-      run: |
-        sudo wget -q -O /bin/terragrunt "https://github.com/gruntwork-io/terragrunt/releases/download/v${{ inputs.tg-version }}/terragrunt_linux_amd64"
-        sudo chmod +x /bin/terragrunt
-
-    # Initialize a new or existing Terragrunt working directory by creating initial files,  loading any remote state, downloading modules, etc.
-    - name: Terragrunt Validate
-      continue-on-error: false
-      run: |
-        terragrunt run-all validate \
-        --terragrunt-working-dir ${{ env.infra-dir }}/${{ env.environment }}
-        
-    - name: Terragrunt Apply
-      continue-on-error: false
-      run: |
-        terragrunt run-all apply \
-        --terragrunt-working-dir ${{ env.infra-dir }}/${{ env.environment }} \
-        --terragrunt-non-interactive

@@ -1,0 +1,43 @@
+on:
+  workflow_call:
+    inputs:
+      lambda_src:
+        required: true
+        type: string
+          
+      lambda_output:
+        required: true
+        type: string
+      
+      infra-dir:
+        required: true
+        type: string
+          
+      go-version:
+        required: false
+        type: string
+        default: "1.21.4"
+          
+jobs:
+  Build-Lambda:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+        
+    - name: Set up Go
+      uses: actions/setup-go@v3
+
+    - name: Build Executables
+      run: go build -o ${{ inputs.infra-dir }}/${{inputs.lambda_output}} src/cmd/${{inputs.lambda_src}}
+
+    - name: Upload Artifacts
+      id: cache
+      uses: actions/upload-artifact@v3
+      with:
+        name: lambdas
+        path: ${{ inputs.infra-dir }}/lambda/bin/
+          
+    # - name: Test
+    #   run: go test -v ./...
+
