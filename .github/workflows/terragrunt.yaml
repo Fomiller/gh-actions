@@ -67,7 +67,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
         
-    - name: Download Artifacts
+    - name: Download Lambda Artifacts
       uses: actions/download-artifact@v3
       if: ${{inputs.download-artifacts}} == true
       with:
