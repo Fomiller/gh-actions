@@ -13,6 +13,10 @@ on:
         required: false 
         type: boolean
         default: false
+          
+      artifacts_dir:
+        required: false 
+        type: string
       
       tg-version:
         required: false
@@ -68,7 +72,7 @@ jobs:
       if: ${{inputs.download-artifacts}} == true
       with:
         name: lambdas
-        path: ${{inputs.infra-dir}}/lambda/bin/
+        path: ${{inputs.artifacts_dir}}
           
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v4
