@@ -2,7 +2,7 @@ on:
   workflow_call:
     inputs:
       artifacts_dir:
-        required: dir
+        required: true
         type: string
           
       lambda_src:
