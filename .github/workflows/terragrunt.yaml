@@ -69,7 +69,7 @@ jobs:
         
     - name: Download Lambda Artifacts
       uses: actions/download-artifact@v3
-      if: ${{inputs.download-artifacts}} == true
+      if: ${{ (inputs.download-artifacts == true) }} 
       with:
         name: lambdas
         path: ${{inputs.artifacts_dir}}
