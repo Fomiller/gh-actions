@@ -21,7 +21,7 @@ on:
       tg-version:
         required: false
         type: string
-        default: 0.42.8
+        default: 0.48.5
             
       tf-version:
         required: false
