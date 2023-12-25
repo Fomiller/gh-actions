@@ -55,7 +55,7 @@ jobs:
         push: true
         build-args: |
           TWITCH_CLIENT_ID=${{secrets.TWITCH_CLIENT_ID}}
-          TWITCH_CLIENT_SECRETS=${{secrets.TWITCH_CLIENT_SECRETS}}
+          TWITCH_CLIENT_SECRET=${{secrets.TWITCH_CLIENT_SECRET}}
         tags: |
           ${{env.ECR_REGISTRY}}/${{inputs.repo-prefix}}-${{inputs.repo}}:latest
           ${{env.ECR_REGISTRY}}/${{inputs.repo-prefix}}-${{inputs.repo}}:${{env.SHORT_SHA}}
