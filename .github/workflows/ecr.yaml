@@ -53,7 +53,6 @@ jobs:
       with:
         context: .
         push: true
-        build-args: |
         tags: |
           ${{env.ECR_REGISTRY}}/${{inputs.repo-prefix}}-${{inputs.repo}}:latest
           ${{env.ECR_REGISTRY}}/${{inputs.repo-prefix}}-${{inputs.repo}}:${{env.SHORT_SHA}}
