@@ -1,0 +1,67 @@
+on:
+  workflow_call:
+    inputs:
+      artifacts_dir:
+        required: true
+        type: string
+          
+      lambda_dir:
+        required: true
+        type: string
+          
+      lambda_output:
+        required: true
+        type: string
+          
+      rust_version:
+        required: false
+        type: string
+        default: stable
+          
+jobs:
+  Build-Lambda:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ inputs.rust_version }}
+          profile: minimal
+          override: true
+
+      - name: Install Zig toolchain
+        uses: korandoru/setup-zig@v1
+        with:
+          zig-version: 0.10.0
+
+      - name: Install Cargo Lambda
+        uses: jaxxstorm/action-install-gh-release@v1.9.0
+        with:
+          repo: cargo-lambda/cargo-lambda
+          platform: linux
+          arch: aarch64
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-build-cache
+
+      - name: Build Binary
+        run: |
+          cargo lambda build \
+          --arm64 \
+          --manifest-path ${{ inputs.lambda_dir }}/Cargo.toml \
+          --lambda-dir ${{ inputs.lambda_output }}
+
+      - name: Upload Artifacts
+        id: cache
+        uses: actions/upload-artifact@v3
+        with:
+          name: lambdas
+        path: ${{ inputs.artifacts_dir }}
