@@ -19,7 +19,7 @@ on:
         default: stable
           
 jobs:
-  Build-Lambda:
+  Build-Rust-Lambda:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

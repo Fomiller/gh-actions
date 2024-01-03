@@ -19,7 +19,7 @@ on:
         default: "1.21.4"
           
 jobs:
-  Build-Lambda:
+  Build-Go-Lambda:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
