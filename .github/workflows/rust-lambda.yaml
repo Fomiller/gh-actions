@@ -54,10 +54,7 @@ jobs:
 
       - name: Build Binary
         run: |
-          cargo lambda build \
-          --arm64 \
-          --manifest-path ${{ inputs.lambda_dir }}/Cargo.toml \
-          --lambda-dir ${{ inputs.lambda_output }}
+          cargo lambda build --arm64 --manifest-path ${{ inputs.lambda_dir }}/Cargo.toml --lambda-dir ${{ inputs.lambda_output }}
 
       - name: Upload Artifacts
         id: cache
