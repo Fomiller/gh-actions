@@ -42,6 +42,9 @@ jobs:
           repo: cargo-lambda/cargo-lambda
           platform: linux
           arch: x86_64
+            
+      - name: Install x86_64 Build Dependencies
+        run: sudo apt-get update && sudo apt-get install pkg-config libssl-dev clang
 
       - name: Cache cargo registry
         uses: actions/cache@v3
