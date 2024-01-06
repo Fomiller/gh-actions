@@ -46,6 +46,12 @@ jobs:
       - name: Install x86_64 Build Dependencies
         run: sudo apt-get update && sudo apt-get install pkg-config libssl-dev clang
 
+      - name: DEBUG
+        uses: lhotari/action-upterm@v1
+        with:
+           limit-access-to-actor: true
+           limit-access-to-users: Fomiller
+         
       - name: Cache cargo registry
         uses: actions/cache@v3
         continue-on-error: false
