@@ -59,6 +59,7 @@ jobs:
         run: |
           cargo lambda build \
           --arm64 \
+          --release \   
           --manifest-path ${{ inputs.lambda_dir }}/Cargo.toml \
           --lambda-dir ${{ inputs.lambda_output }}
 
