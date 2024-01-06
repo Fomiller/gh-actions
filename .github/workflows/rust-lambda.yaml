@@ -43,8 +43,8 @@ jobs:
           platform: linux
           arch: x86_64
             
-      - name: Install x86_64 Build Dependencies
-        run: sudo apt-get update && sudo apt-get install pkg-config libssl-dev clang
+      # - name: Install x86_64 Build Dependencies
+      #   run: sudo apt-get update && sudo apt-get install pkg-config libssl-dev clang
 
       # - name: DEBUG
       #   uses: lhotari/action-upterm@v1
