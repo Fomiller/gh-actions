@@ -30,7 +30,7 @@ jobs:
           command: "build"
           target: aarch64-unknown-linux-gnu
           toolchain: stable
-          args: "--locked --release"
+          args: "--locked --release --manifest-path ${{ inputs.lambda_dir }}/Cargo.toml"
           strip: true
 
       # - name: Install Rust
