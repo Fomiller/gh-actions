@@ -51,14 +51,8 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            inputs.lambda_dir/target
+            ${{ inputs.lambda_dir }}/target
           key: ${{ format('cargo-build-cache-{0}', hashFiles(format('{0}/Cargo.toml', inputs.lambda_dir))) }}
-            
-      - name: DEBUG
-        uses: lhotari/action-upterm@v1
-        with:
-          limit-access-to-actor: true
-          limit-access-to-users: Fomiller
 
       - name: Build Binary
         run: |
