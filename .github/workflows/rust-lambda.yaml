@@ -43,11 +43,11 @@ jobs:
           platform: linux
           arch: x86_64
             
-      # - name: DEBUG
-      #   uses: lhotari/action-upterm@v1
-      #   with:
-      #      limit-access-to-actor: true
-      #      limit-access-to-users: Fomiller
+      - name: DEBUG
+        uses: lhotari/action-upterm@v1
+        with:
+           limit-access-to-actor: true
+           limit-access-to-users: Fomiller
          
       - name: Cargo Cache
         uses: actions/cache@v3
@@ -56,7 +56,7 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: cargo-build-cache-${{ hashFiles('${{ inputs.lambda_dir }}/Cargo.toml}}') }}
+          key: ${{ format('cargo-build-cache-{0}', hashFiles(format('{0}/Cargo.toml', inputs.lambda_dir))) }}
 
       - name: Build Binary
         run: |
