@@ -59,7 +59,8 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: cargo-build-cache
+          key: cargo-build-cache-${{ hashFiles('Cargo.toml') }}
+
 
       - name: Build Binary
         run: |
