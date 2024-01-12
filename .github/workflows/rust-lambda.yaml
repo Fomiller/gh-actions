@@ -52,7 +52,6 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             ${{ inputs.lambda_dir }}/target
-            ${{ inputs.artifacts_dir }}
           key: ${{ format('cargo-build-cache-{0}', hashFiles(format('{0}/Cargo.toml', inputs.lambda_dir))) }}
 
       - name: Build Binary
