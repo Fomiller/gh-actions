@@ -43,24 +43,20 @@ jobs:
           platform: linux
           arch: x86_64
             
-      # - name: Install x86_64 Build Dependencies
-      #   run: sudo apt-get update && sudo apt-get install pkg-config libssl-dev clang
-
       # - name: DEBUG
       #   uses: lhotari/action-upterm@v1
       #   with:
       #      limit-access-to-actor: true
       #      limit-access-to-users: Fomiller
          
-      - name: Cache cargo registry
+      - name: Cargo Cache
         uses: actions/cache@v3
         continue-on-error: false
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: cargo-build-cache-${{ hashFiles('Cargo.toml') }}
-
+          key: cargo-build-cache-${{ hashFiles('${{ inputs.lambda_dir }}/Cargo.toml}}') }}
 
       - name: Build Binary
         run: |
