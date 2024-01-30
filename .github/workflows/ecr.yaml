@@ -19,10 +19,11 @@ on:
         type: string
         default: .
       platforms:
-        description: comma seperated list of build platforms e.g. "linux/amd64,linux/arm64"
+        description: comma seperated list of build platforms e.g. '["linux/amd64,linux/arm64"]'
         required: false
         type: string
-        default: "linux/amd64"
+        default: '["linux/amd64"]'
+
 
 jobs:
   Build-deploy-ecr-images:
@@ -32,7 +33,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        platform: ${{ fromJSON(format('[{0}]', inputs.platforms || 'linux/amd64')) }}
+        platform: ${{ fromJSON( inputs.platforms ) }}
     steps:
     - name: Checkout
       uses: actions/checkout@v4
