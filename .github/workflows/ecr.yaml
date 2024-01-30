@@ -60,7 +60,7 @@ jobs:
         ECR_REGISTRY: ${{steps.login-ecr.outputs.registry}}
       with:
         context: ${{ inputs.context }}
-        dockerfile: ${{ inputs.dockerfile }}
+        file: ${{ inputs.dockerfile }}
         push: true
         tags: |
           ${{env.ECR_REGISTRY}}/${{inputs.repo-prefix}}-${{inputs.repo}}:latest
