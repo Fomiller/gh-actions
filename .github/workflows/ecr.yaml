@@ -22,7 +22,7 @@ on:
         description: comma seperated list of build platforms e.g. "linux/amd64,linux/arm64"
         required: false
         type: string
-        default: .
+        default: linux/amd64
 
 jobs:
   Build-deploy-ecr-images:
