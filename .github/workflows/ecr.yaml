@@ -32,7 +32,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        platform: ${{ fromJSON(format('[{0}]', inputs.platforms || 'linux/amd64"')) }}
+        platform: ${{ fromJSON(format('[{0}]', inputs.platforms || 'linux/amd64')) }}
     steps:
     - name: Checkout
       uses: actions/checkout@v4
