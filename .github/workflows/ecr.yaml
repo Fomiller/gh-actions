@@ -72,6 +72,7 @@ jobs:
         context: ${{ inputs.context }}
         file: ${{ inputs.dockerfile }}
         platforms: ${{ matrix.platform }}
+        install: true
         push: true
         tags: |
           ${{env.ECR_REGISTRY}}/${{inputs.repo-prefix}}-${{inputs.repo}}:latest
