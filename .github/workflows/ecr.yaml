@@ -10,6 +10,14 @@ on:
       repo-prefix:
         required: true
         type: string
+      dockerfile:
+        required: false
+        type: string
+        default: dockerfile
+      context:
+        required: false
+        type: string
+        default: .
 
 jobs:
   Build-deploy-ecr-images:
@@ -51,7 +59,8 @@ jobs:
       env:
         ECR_REGISTRY: ${{steps.login-ecr.outputs.registry}}
       with:
-        context: .
+        context: ${{ inputs.context }}
+        dockerfile: ${{ inputs.dockerfile }}
         push: true
         tags: |
           ${{env.ECR_REGISTRY}}/${{inputs.repo-prefix}}-${{inputs.repo}}:latest
