@@ -30,6 +30,8 @@ on:
         default: '["dockerfile"]'
 
 
+
+
 jobs:
   Changes:
     runs-on: ubuntu-latest
@@ -45,7 +47,8 @@ jobs:
       id: filter
       with:
         filters: |
-          docker: ${{ fromJSON( inputs.src-filters ) }}
+          docker: 
+              - 'dockerfile.api'
               
   Build-deploy-ecr-images:
     name: 'Build/Deploy ECR images'
