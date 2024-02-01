@@ -24,10 +24,10 @@ on:
         type: string
         default: '["linux/amd64"]'
       src-filters:
-        description: List of files or directories that will conditionally determine if running docker build is necessary
+        description: JSON object of files or directories that will conditionally determine if running docker build is necessary
         required: false
         type: string
-        default: '["dockerfile"]'
+        default: '{"docker":["dockerfile.api"]}'
 
 
 
@@ -46,9 +46,8 @@ jobs:
     - uses: dorny/paths-filter@v3
       id: filter
       with:
-        filters: |
-          docker: 
-              - 'dockerfile.api'
+        filters:
+          ${{ fromJSON( inputs.src-filters ) }}
               
   Build-deploy-ecr-images:
     name: 'Build/Deploy ECR images'
