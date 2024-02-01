@@ -46,8 +46,7 @@ jobs:
     - uses: dorny/paths-filter@v3
       id: filter
       with:
-        filters: |
-          ${{ fromJSON( inputs.src-filters ) }}
+        filters: ${{ fromJSON( inputs.src-filters ) }}
               
   Build-deploy-ecr-images:
     name: 'Build/Deploy ECR images'
