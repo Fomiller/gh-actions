@@ -28,10 +28,8 @@ on:
         required: false
         type: string
         default: |
-          docker: 'dockerfile.api'
-
-
-
+          docker: 'dockerfile'
+            
 
 jobs:
   Changes:
@@ -46,7 +44,8 @@ jobs:
         
     - uses: dorny/paths-filter@v3
       id: filter
-      with:
+      with: 
+        base: ${{ github.ref }}
         filters: ${{ inputs.src-filters }}
               
   Build-deploy-ecr-images:
