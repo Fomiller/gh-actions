@@ -23,12 +23,32 @@ on:
         required: false
         type: string
         default: '["linux/amd64"]'
+      src-filters:
+        description: List of files or directories that will conditionally determine if running docker build is necessary
+        required: false
+        type: string
+        default: '["dockerfile"]'
 
 
 jobs:
+  Changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      docker: ${{ steps.filter.outputs.docker }}
+    steps:
+    - uses: dorny/paths-filter@v3
+      id: filter
+      with:
+        filters: |
+          docker: ${{ fromJSON( inputs.src-filters ) }}
+              
   Build-deploy-ecr-images:
     name: 'Build/Deploy ECR images'
     runs-on: ubuntu-latest
+    needs: Changes
+    if: ${{ needs.changes.outputs.docker == 'true' }}
     environment: ${{ inputs.environment }}
     strategy:
       fail-fast: true
