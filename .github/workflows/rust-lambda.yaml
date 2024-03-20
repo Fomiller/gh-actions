@@ -43,6 +43,7 @@ jobs:
         filters: ${{ inputs.src-filters }}
           
   Build-Rust-Lambda:
+    needs: Changes
     if: ${{ needs.changes.outputs.lambda == 'true' }}
     runs-on: ubuntu-latest
     steps:
