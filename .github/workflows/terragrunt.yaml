@@ -68,7 +68,7 @@ jobs:
       uses: actions/checkout@v4
         
     - name: Download Lambda Artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v3
       continue-on-error: true
       if: ${{ (inputs.download-artifacts == true) }} 
       with:
