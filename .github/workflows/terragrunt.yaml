@@ -69,6 +69,7 @@ jobs:
         
     - name: Download Lambda Artifacts
       uses: actions/download-artifact@v4
+      continue-on-error: true
       if: ${{ (inputs.download-artifacts == true) }} 
       with:
         name: lambdas
