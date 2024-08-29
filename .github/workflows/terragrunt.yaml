@@ -22,6 +22,11 @@ on:
         required: false
         type: string
         default: 0.48.5
+          
+      tg-destroy:
+        required: false
+        type: boolean
+        default: false
             
       tf-version:
         required: false
@@ -107,9 +112,16 @@ jobs:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
 
     - name: Terragrunt Apply
+      if: ${{ (inputs.tg-destroy == false) }}
       continue-on-error: false
       run: |
         just apply-all
+        
+    - name: Terragrunt Destroy
+      if: ${{ (inputs.tg-destroy == true) }}
+      continue-on-error: false
+      run: |
+        just destroy-all
         
     # use if you need to debug workflow
     # - name: DEBUG
