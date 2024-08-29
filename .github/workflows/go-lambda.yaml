@@ -36,7 +36,7 @@ jobs:
 
     - name: Upload Artifacts
       id: cache
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: lambdas
         path: ${{ inputs.artifacts_dir }}
