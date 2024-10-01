@@ -18,6 +18,11 @@ on:
         type: string
         default: stable
           
+      cache_file:
+        required: false
+        type: string
+        default: Cargo.toml
+          
       src-filters:
         description: JSON object of files or directories that will conditionally determine if running docker build is necessary
         required: false
@@ -77,7 +82,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             ${{ inputs.lambda_dir }}/target
-          key: ${{ format('cargo-build-cache-{0}', hashFiles(format('{0}/Cargo.toml', inputs.lambda_dir))) }}
+          key: ${{ format('cargo-build-cache-{0}', hashFiles(format('{0}/${{var.cache_file}}', inputs.lambda_dir))) }}
 
       - name: Build Binary
         run: |
