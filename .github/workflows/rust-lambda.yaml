@@ -82,7 +82,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             ${{ inputs.lambda_dir }}/target
-          key: ${{ format('cargo-build-cache-{0}', hashFiles(format('{0}/${{var.cache_file}}', inputs.lambda_dir))) }}
+          key: ${{ format('cargo-build-cache-{0}', hashFiles(format('{0}/${{inputs.cache_file}}', inputs.lambda_dir))) }}
 
       - name: Build Binary
         run: |
