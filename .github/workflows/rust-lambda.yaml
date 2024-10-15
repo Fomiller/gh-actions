@@ -47,7 +47,48 @@ jobs:
         base: ${{ github.ref }}
         filters: ${{ inputs.src-filters }}
           
-  Build-Rust-Lambda:
+  Test-Rust-Lambdas:
+    needs: Changes
+    if: ${{ needs.changes.outputs.lambda == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ inputs.rust_version }}
+          profile: minimal
+          override: true
+
+      - name: Install Zig toolchain
+        uses: korandoru/setup-zig@v1
+        with:
+          zig-version: 0.10.0
+
+      - name: Install Cargo Lambda
+        uses: jaxxstorm/action-install-gh-release@v1.9.0
+        with:
+          repo: cargo-lambda/cargo-lambda
+          platform: linux
+          arch: x86_64
+         
+      - name: Cargo Cache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ${{ inputs.lambda_dir }}/target
+          key: ${{ format('cargo-build-cache-{0}', hashFiles(format('{0}/{1}', inputs.lambda_dir, inputs.cache_file))) }}
+
+      - name: Run Tests
+        run: |
+          cargo test \
+          --manifest-path ${{ inputs.lambda_dir }}/Cargo.toml \
+          
+  Build-Rust-Lambdas:
     needs: Changes
     if: ${{ needs.changes.outputs.lambda == 'true' }}
     runs-on: ubuntu-latest
