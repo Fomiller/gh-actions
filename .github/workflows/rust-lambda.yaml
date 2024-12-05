@@ -105,7 +105,7 @@ jobs:
       - name: Install Zig toolchain
         uses: korandoru/setup-zig@v1
         with:
-          zig-version: 0.10.0
+          zig-version: 0.13.0
 
       - name: Install Cargo Lambda
         uses: jaxxstorm/action-install-gh-release@v1.9.0
@@ -128,7 +128,7 @@ jobs:
       - name: Build Binary
         run: |
           cargo lambda build \
-          --arm64 \
+          --target aarch64-unknown-linux-gnu \
           --release \
           --output-format zip \
           --manifest-path ${{ inputs.lambda_dir }}/Cargo.toml \
