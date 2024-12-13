@@ -114,15 +114,20 @@ jobs:
           platform: linux
           arch: x86_64
          
-      - name: Cargo Cache
-        uses: actions/cache@v3
-        continue-on-error: false
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            ${{ inputs.lambda_dir }}/target
-          key: ${{ format('cargo-build-cache-{0}', hashFiles(format('{0}/{1}', inputs.lambda_dir, inputs.cache_file))) }}
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        workspaces: ${{ inputs.lambda_dir }}
+        key: ${{ format('cargo-build-cache-{0}', hashFiles(format('{0}/{1}', inputs.lambda_dir, inputs.cache_file))) }}
+          
+      # - name: Cargo Cache
+      #   uses: actions/cache@v3
+      #   continue-on-error: false
+      #   with:
+      #     path: |
+      #       ~/.cargo/registry
+      #       ~/.cargo/git
+      #       ${{ inputs.lambda_dir }}/target
+      #     key: ${{ format('cargo-build-cache-{0}', hashFiles(format('{0}/{1}', inputs.lambda_dir, inputs.cache_file))) }}
             
       - name: Run Tests
         run: |
