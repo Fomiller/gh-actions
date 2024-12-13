@@ -117,7 +117,7 @@ jobs:
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
         workspaces: ${{ inputs.lambda_dir }}
-        key: ${{ format('cargo-build-cache-{0}', hashFiles(format('{0}/{1}', inputs.lambda_dir, inputs.cache_file))) }}
+        key: ${{ format('cargo-cache-{0}', hashFiles(format('{0}/{1}', inputs.lambda_dir, inputs.cache_file))) }}
           
       # - name: Cargo Cache
       #   uses: actions/cache@v3
