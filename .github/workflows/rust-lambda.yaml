@@ -47,12 +47,6 @@ jobs:
         base: ${{ github.ref }}
         filters: ${{ inputs.src-filters }}
           
-    - name: Rust Cache
-      uses: Swatinem/rust-cache@v2
-      with:
-        workspaces: ${{ inputs.lambda_dir }}
-        key: ${{ format('cargo-cache-{0}', hashFiles(format('{0}/{1}', inputs.lambda_dir, inputs.cache_file))) }}
-          
   Test-Rust-Lambdas:
     needs: Changes
     if: ${{ needs.changes.outputs.lambda == 'true' }}
@@ -71,7 +65,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: ${{ inputs.lambda_dir }}
-          key: ${{ format('cargo-cache-{0}-test', hashFiles(format('{0}/{1}', inputs.lambda_dir, inputs.cache_file))) }}
+          key: ${{ format('cargo-cache-{0}', hashFiles(format('{0}/{1}', inputs.lambda_dir, inputs.cache_file))) }}
          
       - name: Run Tests
         run: |
@@ -108,7 +102,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: ${{ inputs.lambda_dir }}
-          key: ${{ format('cargo-cache-{0}-build', hashFiles(format('{0}/{1}', inputs.lambda_dir, inputs.cache_file))) }}
+          key: ${{ format('cargo-cache-{0}', hashFiles(format('{0}/{1}', inputs.lambda_dir, inputs.cache_file))) }}
 
       - name: Build Lambdas
         run: |
