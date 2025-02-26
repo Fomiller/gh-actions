@@ -32,7 +32,7 @@ on:
           
 jobs:
   Changes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     permissions:
       pull-requests: read
     outputs:
@@ -86,17 +86,17 @@ jobs:
           profile: minimal
           override: true
 
-      - name: Install Zig toolchain
-        uses: korandoru/setup-zig@v1
-        with:
-          zig-version: 0.13.0
+      # - name: Install Zig toolchain
+      #   uses: korandoru/setup-zig@v1
+      #   with:
+      #     zig-version: 0.13.0
 
       - name: Install Cargo Lambda
         uses: jaxxstorm/action-install-gh-release@v1.9.0
         with:
           repo: cargo-lambda/cargo-lambda
           platform: linux
-          arch: x86_64
+          arch: aarch64
          
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
@@ -107,7 +107,8 @@ jobs:
       - name: Build Lambdas
         run: |
           cargo lambda build \
-          --target aarch64-unknown-linux-gnu \
+          --arm64 \
+          --compiler cargo \
           --release \
           --output-format zip \
           --manifest-path ${{ inputs.lambda_dir }}/Cargo.toml \
