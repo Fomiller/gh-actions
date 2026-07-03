@@ -47,8 +47,18 @@ on:
         required: false
         type: string
         default: json
-      
-          
+
+      use-tailscale:
+        required: false
+        type: boolean
+        default: false
+
+      tailscale-tags:
+        required: false
+        type: string
+        default: tag:ci
+
+
     secrets:
       # aws-access-key-id:
       #   required: true
@@ -59,6 +69,10 @@ on:
       # aws-deployer-role:
       #   required: true
       gmail_pass:
+        required: false
+      ts-oauth-client-id:
+        required: false
+      ts-oauth-client-secret:
         required: false
 
 jobs:
@@ -80,6 +94,17 @@ jobs:
         name: lambdas
         path: ${{inputs.artifacts_dir}}
           
+    # Needed when infra-dir targets nodes/services only reachable over the
+    # tailnet (e.g. on-prem Talos nodes) rather than the public internet.
+    - name: Connect to Tailscale
+      if: ${{ inputs.use-tailscale == true }}
+      uses: tailscale/github-action@v3
+      with:
+        oauth-client-id: ${{ secrets.ts-oauth-client-id }}
+        oauth-secret: ${{ secrets.ts-oauth-client-secret }}
+        tags: ${{ inputs.tailscale-tags }}
+        args: --accept-routes
+
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
@@ -115,8 +140,8 @@ jobs:
       if: ${{ (inputs.tg-destroy == false) }}
       continue-on-error: false
       run: |
-        just apply-all
-        
+        just infraDir=${{ inputs.infra-dir }} apply-all
+
       # use if you need to debug workflow
     # - name: DEBUG
     #   uses: lhotari/action-upterm@v1
@@ -128,6 +153,6 @@ jobs:
       if: ${{ (inputs.tg-destroy == true) }}
       continue-on-error: false
       run: |
-        just destroy-all
+        just infraDir=${{ inputs.infra-dir }} destroy-all
         
           
