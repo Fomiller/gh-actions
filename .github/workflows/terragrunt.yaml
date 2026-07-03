@@ -70,9 +70,9 @@ on:
       #   required: true
       gmail_pass:
         required: false
-      ts-oauth-client-id:
+      ts_oauth_client_id:
         required: false
-      ts-oauth-client-secret:
+      ts_oauth_client_secret:
         required: false
 
 jobs:
@@ -100,8 +100,8 @@ jobs:
       if: ${{ inputs.use-tailscale == true }}
       uses: tailscale/github-action@v3
       with:
-        oauth-client-id: ${{ secrets.ts-oauth-client-id }}
-        oauth-secret: ${{ secrets.ts-oauth-client-secret }}
+        oauth-client-id: ${{ secrets.ts_oauth_client_id }}
+        oauth-secret: ${{ secrets.ts_oauth_client_secret }}
         tags: ${{ inputs.tailscale-tags }}
         args: --accept-routes
 
