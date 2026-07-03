@@ -100,25 +100,25 @@ jobs:
 
     # Needed when infra-dir targets nodes/services only reachable over the
     # tailnet (e.g. on-prem Talos nodes) rather than the public internet.
-    # Reads TS_OAUTH_CLIENT_ID / TS_OAUTH_CLIENT_SECRET from Doppler instead
+    # Reads TAILSCALE_GITHUB_ACTIONS_CLIENT_ID / TAILSCALE_GITHUB_ACTIONS_CLIENT_SECRET from Doppler instead
     # of GH Actions secrets so tailscale creds live in the same place as
     # everything else terragrunt/terraform pulls from.
     - name: Fetch Tailscale credentials from Doppler
       if: ${{ inputs.use-tailscale == true }}
       run: |
-        TS_ID=$(doppler secrets get TS_OAUTH_CLIENT_ID --plain)
-        TS_SECRET=$(doppler secrets get TS_OAUTH_CLIENT_SECRET --plain)
+        TS_ID=$(doppler secrets get TAILSCALE_GITHUB_ACTIONS_CLIENT_ID --plain)
+        TS_SECRET=$(doppler secrets get TAILSCALE_GITHUB_ACTIONS_CLIENT_SECRET --plain)
         echo "::add-mask::$TS_ID"
         echo "::add-mask::$TS_SECRET"
-        echo "TS_OAUTH_CLIENT_ID=$TS_ID" >> "$GITHUB_ENV"
-        echo "TS_OAUTH_CLIENT_SECRET=$TS_SECRET" >> "$GITHUB_ENV"
+        echo "TAILSCALE_GITHUB_ACTIONS_CLIENT_ID=$TS_ID" >> "$GITHUB_ENV"
+        echo "TAILSCALE_GITHUB_ACTIONS_CLIENT_SECRET=$TS_SECRET" >> "$GITHUB_ENV"
 
     - name: Connect to Tailscale
       if: ${{ inputs.use-tailscale == true }}
       uses: tailscale/github-action@v3
       with:
-        oauth-client-id: ${{ env.TS_OAUTH_CLIENT_ID }}
-        oauth-secret: ${{ env.TS_OAUTH_CLIENT_SECRET }}
+        oauth-client-id: ${{ env.TAILSCALE_GITHUB_ACTIONS_CLIENT_ID }}
+        oauth-secret: ${{ env.TAILSCALE_GITHUB_ACTIONS_CLIENT_SECRET }}
         tags: ${{ inputs.tailscale-tags }}
         args: --accept-routes
 
