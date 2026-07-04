@@ -21,17 +21,22 @@ on:
       tg-version:
         required: false
         type: string
-        default: 0.48.5
-          
+        default: 1.1.0
+
       tg-destroy:
         required: false
         type: boolean
         default: false
-            
+
+      tg-plan:
+        required: false
+        type: boolean
+        default: false
+
       tf-version:
         required: false
         type: string
-        default: latest
+        default: 1.9.8
             
       infra-dir:
         required: false
@@ -73,7 +78,7 @@ on:
 
 jobs:
   Deploy-infra:
-    if: ${{ (github.event.pull_request.merged == true || github.event_name == 'push') && needs.pre-check.outputs.should_skip != 'true' }}
+    if: ${{ (inputs.tg-plan == true || github.event.pull_request.merged == true || github.event_name == 'push') && needs.pre-check.outputs.should_skip != 'true' }}
     name: 'Deploy Infra'
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
@@ -145,8 +150,14 @@ jobs:
     - name: Install Just
       uses: extractions/setup-just@v1
 
+    - name: Terragrunt Plan
+      if: ${{ (inputs.tg-plan == true) }}
+      continue-on-error: false
+      run: |
+        just infraDir=${{ inputs.infra-dir }} plan-all
+
     - name: Terragrunt Apply
-      if: ${{ (inputs.tg-destroy == false) }}
+      if: ${{ (inputs.tg-plan == false) && (inputs.tg-destroy == false) }}
       continue-on-error: false
       run: |
         just infraDir=${{ inputs.infra-dir }} apply-all
@@ -157,9 +168,9 @@ jobs:
     #   with:
     #     limit-access-to-actor: true
     #     limit-access-to-users: Fomiller
-             
+
     - name: Terragrunt Destroy
-      if: ${{ (inputs.tg-destroy == true) }}
+      if: ${{ (inputs.tg-plan == false) && (inputs.tg-destroy == true) }}
       continue-on-error: false
       run: |
         just infraDir=${{ inputs.infra-dir }} destroy-all
