@@ -21,7 +21,7 @@ on:
       tg-version:
         required: false
         type: string
-        default: 1.1.0
+        default: 1.1.2
 
       tg-destroy:
         required: false
@@ -36,7 +36,7 @@ on:
       tf-version:
         required: false
         type: string
-        default: 1.9.8
+        default: 1.15.8
             
       infra-dir:
         required: false
