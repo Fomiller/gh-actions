@@ -65,6 +65,14 @@ on:
         type: boolean
         default: false
 
+      # Assume AWS_OIDC_ROLE_ARN with a GitHub OIDC token instead of static
+      # keys. The calling job has to grant id-token: write, so this stays off
+      # until a caller opts in.
+      use-oidc:
+        required: false
+        type: boolean
+        default: false
+
       tailscale-tags:
         required: false
         type: string
@@ -134,7 +142,16 @@ jobs:
         tags: ${{ inputs.tailscale-tags }}
         args: --accept-routes
 
+    - name: Configure AWS Credentials (OIDC)
+      if: ${{ inputs.use-oidc == true }}
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+        aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+        role-duration-seconds: 1200
+
     - name: Configure AWS Credentials
+      if: ${{ inputs.use-oidc == false }}
       uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
