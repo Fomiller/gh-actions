@@ -58,6 +58,13 @@ on:
         type: boolean
         default: false
 
+      # Set when the role being assumed doesn't allow sts:TagSession — the
+      # action tags the session by default and the assume then fails.
+      role-skip-session-tagging:
+        required: false
+        type: boolean
+        default: false
+
       tailscale-tags:
         required: false
         type: string
@@ -135,6 +142,7 @@ jobs:
         role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOYER_ROLE }}
         aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
         role-duration-seconds: 1200
+        role-skip-session-tagging: ${{ inputs.role-skip-session-tagging }}
 
     - name: Install Terraform ${{ inputs.tf-version }}
       uses: hashicorp/setup-Terraform@v2
