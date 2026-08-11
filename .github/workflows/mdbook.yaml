@@ -9,9 +9,12 @@ jobs:
   Deploy-mdbook:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # To push a branch 
+      contents: read
       pages: write  # To push to a GitHub Pages site
       id-token: write # To update the deployment status
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,12 +33,12 @@ jobs:
           cd ${{ inputs.book-path }}
           mdbook build
       - name: Setup Pages
-        uses: actions/configure-pages@v2
+        uses: actions/configure-pages@v6
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v1
+        uses: actions/upload-pages-artifact@v5
         with:
           # Upload entire repository
           path: ${{ inputs.book-path }}/book
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v1
+        uses: actions/deploy-pages@v5
