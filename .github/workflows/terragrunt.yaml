@@ -79,21 +79,30 @@ on:
         default: tag:ci
 
 
+    # All optional: callers pass `secrets: inherit`, and which of these are
+    # actually needed depends on use-oidc. Declaring them is what lets
+    # actionlint check the `secrets.` references below.
     secrets:
-      # aws-access-key-id:
-      #   required: true
-      # aws-secret-access-key:
-      #   required: true
-      # aws-account-id:
-      #   required: true
-      # aws-deployer-role:
-      #   required: true
       gmail_pass:
+        required: false
+      DOPPLER_TOKEN:
+        required: false
+      AWS_DEFAULT_REGION:
+        required: false
+      AWS_OIDC_ROLE_ARN:
+        required: false
+      AWS_ACCESS_KEY_ID:
+        required: false
+      AWS_SECRET_ACCESS_KEY:
+        required: false
+      AWS_ACCOUNT_ID:
+        required: false
+      AWS_DEPLOYER_ROLE:
         required: false
 
 jobs:
   Deploy-infra:
-    if: ${{ (inputs.tg-plan == true || github.event.pull_request.merged == true || github.event_name == 'push') && needs.pre-check.outputs.should_skip != 'true' }}
+    if: ${{ inputs.tg-plan == true || github.event.pull_request.merged == true || github.event_name == 'push' }}
     name: 'Deploy Infra'
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
