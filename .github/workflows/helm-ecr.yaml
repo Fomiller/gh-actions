@@ -1,0 +1,85 @@
+# Packages a Helm chart and pushes it to ECR as an OCI artifact. Charts are
+# versioned independently of the image; the caller passes the version.
+#
+# Unlike ecr.yaml, the role arn is an input rather than a secret. The chart
+# repo is per-service and the generated caller already knows its arn, so
+# there is nothing for a shared secret to hide.
+name: helm-ecr
+
+on:
+  workflow_call:
+    inputs:
+      chart-path:
+        required: false
+        type: string
+        default: deploy/chart
+      # The prefix alone, never the full path. `helm push` appends the chart's
+      # own name, so pushing to <prefix>/<chart> silently creates a second repo.
+      repo-prefix:
+        required: true
+        type: string
+      aws-region:
+        required: false
+        type: string
+        default: us-east-1
+      role-to-assume:
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
+      push:
+        description: Package only when false. Pull requests should not publish.
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ inputs.role-to-assume }}
+          aws-region: ${{ inputs.aws-region }}
+          role-duration-seconds: 1200
+
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr
+
+      # Pinned on purpose. helm 4.2.4 emits a blank line before `---` where
+      # 4.2.3 does not, so an unpinned helm breaks consumers' snapshot tests
+      # whenever the runner image moves.
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.3
+
+      - name: Lint the chart
+        env:
+          CHART_PATH: ${{ inputs.chart-path }}
+        run: helm lint "$CHART_PATH"
+
+      - name: Package
+        env:
+          CHART_PATH: ${{ inputs.chart-path }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          helm package "$CHART_PATH" \
+            --version "$VERSION" \
+            --app-version "$VERSION" \
+            --destination dist
+
+      - name: Push
+        if: inputs.push
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          REPO_PREFIX: ${{ inputs.repo-prefix }}
+        run: |
+          set -euo pipefail
+          chart=$(ls dist/*.tgz)
+          helm push "$chart" "oci://$REGISTRY/$REPO_PREFIX"

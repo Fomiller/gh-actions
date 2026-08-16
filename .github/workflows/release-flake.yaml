@@ -1,0 +1,86 @@
+# Cuts a tag per flake directory whose VERSION changed, and regenerates the
+# pack-versions file that golden-base's init app reads.
+#
+# Tag format is <dir>-<semver> and nothing else parses it: the renovate
+# preset's extractVersionTemplate is anchored to that exact prefix.
+name: release-flake
+
+on:
+  workflow_call:
+    inputs:
+      flake-dirs:
+        required: true
+        type: string
+      versions-file:
+        required: false
+        type: string
+        default: golden-base/pack-versions.nix
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Tag each flake whose VERSION is not yet released
+        id: tag
+        env:
+          DIRS: ${{ inputs.flake-dirs }}
+        run: |
+          set -euo pipefail
+          released=()
+          for dir in $(echo "$DIRS" | jq -r '.[]'); do
+            [ -f "$dir/VERSION" ] || { echo "$dir has no VERSION file"; exit 1; }
+            version=$(tr -d '[:space:]' < "$dir/VERSION")
+            tag="$dir-$version"
+            if git rev-parse "$tag" >/dev/null 2>&1; then
+              echo "$tag already exists, skipping"
+              continue
+            fi
+            git tag "$tag"
+            released+=("$tag")
+          done
+          if [ ${#released[@]} -gt 0 ]; then
+            git push origin "${released[@]}"
+          fi
+          printf 'released=%s\n' "${released[*]:-}" >> "$GITHUB_OUTPUT"
+
+      - name: Create releases
+        if: steps.tag.outputs.released != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASED: ${{ steps.tag.outputs.released }}
+        run: |
+          set -euo pipefail
+          for tag in $RELEASED; do
+            gh release create "$tag" --title "$tag" --generate-notes
+          done
+
+      - name: Regenerate the pack versions file
+        if: steps.tag.outputs.released != ''
+        env:
+          DIRS: ${{ inputs.flake-dirs }}
+          VERSIONS_FILE: ${{ inputs.versions-file }}
+        run: |
+          set -euo pipefail
+          {
+            echo "# GENERATED FILE — written by release-flake.yaml when any pack is released."
+            echo "{"
+            for dir in $(echo "$DIRS" | jq -r '.[]'); do
+              printf '  %s = "%s";\n' "$dir" "$(tr -d '[:space:]' < "$dir/VERSION")"
+            done
+            echo "}"
+          } > "$VERSIONS_FILE"
+
+          if git diff --quiet -- "$VERSIONS_FILE"; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$VERSIONS_FILE"
+          git commit -m "chore: refresh pack versions"
+          git push

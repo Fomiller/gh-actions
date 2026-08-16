@@ -1,0 +1,90 @@
+# Regenerates a consuming repo's golden files and either fails on drift or
+# commits the result back to the PR branch.
+#
+# commit-back pushes with GITHUB_TOKEN. That is deliberate: a GITHUB_TOKEN
+# push does not trigger workflows, which is what stops a Renovate PR from
+# regenerating itself forever. Do not replace it with a PAT.
+name: nix-generate
+
+on:
+  workflow_call:
+    inputs:
+      commit-back:
+        description: Commit regenerated files to the PR branch instead of failing on drift
+        required: false
+        type: boolean
+        default: false
+      attic-cache:
+        description: attic cache name to pull from, e.g. homelab. Empty disables the cache
+        required: false
+        type: string
+        default: ''
+      attic-endpoint:
+        required: false
+        type: string
+        default: ''
+      working-directory:
+        required: false
+        type: string
+        default: '.'
+    secrets:
+      ATTIC_TOKEN:
+        required: false
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Configure attic
+        if: inputs.attic-cache != ''
+        env:
+          ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
+          ATTIC_ENDPOINT: ${{ inputs.attic-endpoint }}
+          ATTIC_CACHE: ${{ inputs.attic-cache }}
+        run: |
+          nix profile install nixpkgs#attic-client
+          attic login cache "$ATTIC_ENDPOINT" "$ATTIC_TOKEN"
+          attic use "$ATTIC_CACHE"
+
+      - name: Generate
+        run: nix run .#generate
+
+      # Generation adds files as well as changing them, and `git diff` does not
+      # see an untracked file. Ask git for the whole working-tree state.
+      - name: Check for drift
+        id: drift
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git status --short
+          fi
+
+      - name: Fail on drift
+        if: steps.drift.outputs.changed == 'true' && !inputs.commit-back
+        run: |
+          echo "::error::Generated files are out of sync. Run 'nix run .#generate' and commit the result."
+          git add -A
+          git --no-pager diff --cached
+          exit 1
+
+      - name: Commit regenerated files
+        if: steps.drift.outputs.changed == 'true' && inputs.commit-back
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore: regenerate golden files"
+          git push

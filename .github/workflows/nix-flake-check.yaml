@@ -1,0 +1,39 @@
+name: nix-flake-check
+
+on:
+  workflow_call:
+    inputs:
+      flake-dirs:
+        description: JSON array of flake directories to check, e.g. '["golden-base","golden-github"]'
+        required: true
+        type: string
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir: ${{ fromJSON(inputs.flake-dirs) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+
+      - name: nix flake check
+        env:
+          DIR: ${{ matrix.dir }}
+        run: nix flake check "./$DIR" -L
+
+      # Packs expose their nix-unit suite as a check too, so this is a second
+      # line only. A pack that has the app but no check still gets run.
+      - name: Eval unit tests
+        env:
+          DIR: ${{ matrix.dir }}
+        run: |
+          set -euo pipefail
+          system=$(nix eval --raw --impure --expr builtins.currentSystem)
+          if [ "$(nix eval "./$DIR#apps.$system" --apply 'a: a ? test-eval')" = "true" ]; then
+            nix run "./$DIR#test-eval"
+          else
+            echo "no test-eval app in $DIR, skipping"
+          fi
