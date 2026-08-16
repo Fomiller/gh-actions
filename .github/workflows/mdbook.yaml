@@ -1,3 +1,10 @@
+# Builds an mdbook and optionally publishes it to GitHub Pages.
+#
+# mdbook-version is pinned rather than resolved from the latest release at run
+# time, so a docs build is reproducible and a new mdbook release cannot break
+# an unrelated PR.
+name: mdbook
+
 on:
   workflow_call:
     inputs:
@@ -5,40 +12,56 @@ on:
         required: false
         type: string
         default: docs
+      mdbook-version:
+        required: false
+        type: string
+        default: '0.5.4'
+      deploy:
+        description: Publish to Pages. False builds only, for pull requests.
+        required: false
+        type: boolean
+        default: true
+
 jobs:
-  Deploy-mdbook:
+  build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pages: write  # To push to a GitHub Pages site
-      id-token: write # To update the deployment status
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Install latest mdbook
+
+      # Unpacked into RUNNER_TEMP, not the working directory, so the binary
+      # cannot end up in the uploaded artifact.
+      - name: Install mdbook
+        env:
+          VERSION: ${{ inputs.mdbook-version }}
         run: |
-          tag=$(curl 'https://api.github.com/repos/rust-lang/mdbook/releases/latest' | jq -r '.tag_name')
-          url="https://github.com/rust-lang/mdbook/releases/download/${tag}/mdbook-${tag}-x86_64-unknown-linux-gnu.tar.gz"
-          mkdir mdbook
-          curl -sSL $url | tar -xz --directory=./mdbook
-          echo `pwd`/mdbook >> $GITHUB_PATH
-      - name: Build Book
-        run: |
-          # This assumes your book is in the root of your repository.
-          # Just add a `cd` here if you need to change to another directory.
-          cd ${{ inputs.book-path }}
-          mdbook build
+          set -euo pipefail
+          url="https://github.com/rust-lang/mdbook/releases/download/v${VERSION}/mdbook-v${VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          mkdir -p "$RUNNER_TEMP/mdbook"
+          curl -sSfL "$url" | tar -xz --directory="$RUNNER_TEMP/mdbook"
+          echo "$RUNNER_TEMP/mdbook" >> "$GITHUB_PATH"
+
+      - name: Build
+        run: mdbook build
+        working-directory: ${{ inputs.book-path }}
+
       - name: Setup Pages
+        if: inputs.deploy
         uses: actions/configure-pages@v6
+
       - name: Upload artifact
+        if: inputs.deploy
         uses: actions/upload-pages-artifact@v5
         with:
-          # Upload entire repository
           path: ${{ inputs.book-path }}/book
-      - name: Deploy to GitHub Pages
+
+      - name: Deploy
         id: deployment
+        if: inputs.deploy
         uses: actions/deploy-pages@v5
