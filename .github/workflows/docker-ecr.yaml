@@ -1,0 +1,118 @@
+name: Docker ECR
+
+# Builds a service image and pushes it to ECR.
+#
+# The repository name is the service name with no suffix. Its chart goes to a
+# separate <name>-chart repository, published by helm-ecr.yaml.
+#
+# Auth is OIDC. There are no long-lived AWS keys in the calling repo.
+#
+# The ECR repository itself is not created here. Terraform owns it.
+
+on:
+  workflow_call:
+    inputs:
+      repository:
+        description: ECR repository name. Also the image name.
+        required: true
+        type: string
+      role-to-assume:
+        description: IAM role ARN to assume for the ECR push.
+        required: true
+        type: string
+      aws-region:
+        required: false
+        type: string
+        default: us-east-1
+      context:
+        required: false
+        type: string
+        default: .
+      dockerfile:
+        required: false
+        type: string
+        default: Dockerfile
+      platforms:
+        description: Comma-separated buildx platforms.
+        required: false
+        type: string
+        default: linux/amd64
+      push:
+        description: Push to ECR. Off means build only.
+        required: false
+        type: boolean
+        default: false
+    outputs:
+      image:
+        description: The pushed image, digest included. Empty when push is off.
+        value: ${{ jobs.build.outputs.image }}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ inputs.repository }}
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      image: ${{ steps.result.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        if: inputs.push
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ inputs.role-to-assume }}
+          aws-region: ${{ inputs.aws-region }}
+
+      - name: Log in to ECR
+        if: inputs.push
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Resolve tags
+        id: tags
+        env:
+          # Empty on a build-only run. The build still needs a name, so it
+          # falls back to a local one that is never pushed.
+          REGISTRY: ${{ steps.ecr.outputs.registry || 'local' }}
+          REPOSITORY: ${{ inputs.repository }}
+        run: |
+          set -euo pipefail
+          sha=$(git rev-parse --short HEAD)
+          {
+            echo "tags<<EOF"
+            echo "$REGISTRY/$REPOSITORY:$sha"
+            echo "$REGISTRY/$REPOSITORY:latest"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "ref=$REGISTRY/$REPOSITORY:$sha" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+        with:
+          platforms: ${{ inputs.platforms }}
+
+      - uses: docker/build-push-action@v6
+        id: build
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.dockerfile }}
+          platforms: ${{ inputs.platforms }}
+          push: ${{ inputs.push }}
+          tags: ${{ steps.tags.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - id: result
+        if: inputs.push
+        env:
+          REF: ${{ steps.tags.outputs.ref }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          echo "image=$REF@$DIGEST" >> "$GITHUB_OUTPUT"
+          echo "Pushed \`$REF\` (\`$DIGEST\`)" >> "$GITHUB_STEP_SUMMARY"
