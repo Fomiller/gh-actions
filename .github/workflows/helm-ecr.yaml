@@ -1,56 +1,122 @@
-# Packages a Helm chart and pushes it to ECR as an OCI artifact. Charts are
-# versioned independently of the image; the caller passes the version.
+name: helm-ecr
+
+# Publishes every chart under helm/ to ECR as an OCI artifact.
+#
+# Charts are discovered, not listed. Any directory holding a Chart.yaml is a
+# chart, so adding one is a matter of adding the directory.
+#
+# The ECR repository name is Chart.yaml's `name`, which must end in -chart so a
+# service's chart repo stays distinct from its image repo. The suffix lives in
+# Chart.yaml rather than being appended here because `helm push` reads the
+# repository name out of the packaged chart — appending at push time would make
+# the published chart disagree with what `helm template` renders locally.
+#
+# The chart version also comes from Chart.yaml, so there is no version input.
 #
 # Unlike ecr.yaml, the role arn is an input rather than a secret. The chart
 # repo is per-service and the generated caller already knows its arn, so
 # there is nothing for a shared secret to hide.
-name: helm-ecr
+#
+# The ECR repositories themselves are not created here. Terraform owns them.
 
 on:
   workflow_call:
     inputs:
-      chart-path:
-        required: false
-        type: string
-        default: deploy/chart
-      # The prefix alone, never the full path. `helm push` appends the chart's
-      # own name, so pushing to <prefix>/<chart> silently creates a second repo.
-      repo-prefix:
+      role-to-assume:
+        description: IAM role ARN to assume for the ECR push.
         required: true
         type: string
       aws-region:
         required: false
         type: string
         default: us-east-1
-      role-to-assume:
-        required: true
+      chart-root:
+        description: Directory holding one subdirectory per chart.
+        required: false
         type: string
-      version:
-        required: true
-        type: string
+        default: helm
       push:
-        description: Package only when false. Pull requests should not publish.
+        description: Push to ECR. Off means lint and package only.
         required: false
         type: boolean
-        default: true
+        default: false
+    outputs:
+      charts:
+        description: JSON matrix of the discovered charts.
+        value: ${{ jobs.discover.outputs.matrix }}
+
+permissions:
+  contents: read
 
 jobs:
+  discover:
+    name: Discover charts
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.discover.outputs.matrix }}
+      has-charts: ${{ steps.discover.outputs.has-charts }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: discover
+        env:
+          CHART_ROOT: ${{ inputs.chart-root }}
+        run: |
+          set -euo pipefail
+          entries=()
+          shopt -s nullglob
+          for chart in "$CHART_ROOT"/*/Chart.yaml; do
+            dir=$(dirname "$chart")
+            name=$(yq -r '.name' "$chart")
+            version=$(yq -r '.version' "$chart")
+            if [ -z "$name" ] || [ "$name" = "null" ]; then
+              echo "$chart has no name" >&2
+              exit 1
+            fi
+            if [ -z "$version" ] || [ "$version" = "null" ]; then
+              echo "$chart has no version" >&2
+              exit 1
+            fi
+            case "$name" in
+              *-chart) ;;
+              *)
+                echo "$chart is named '$name'; chart names must end in -chart" >&2
+                exit 1
+                ;;
+            esac
+            entries+=("$(jq -nc \
+              --arg name "$name" \
+              --arg version "$version" \
+              --arg path "$dir" \
+              '{name:$name, version:$version, path:$path}')")
+          done
+
+          matrix=$(printf '%s\n' "${entries[@]+"${entries[@]}"}" | jq -sc '{include: .}')
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+          count=$(jq -r '.include | length' <<< "$matrix")
+          if [ "$count" -gt 0 ]; then
+            echo "has-charts=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has-charts=false" >> "$GITHUB_OUTPUT"
+            echo "No Chart.yaml found under $CHART_ROOT/." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   publish:
+    name: ${{ matrix.name }} ${{ matrix.version }}
+    needs: discover
+    # An empty matrix is a job configuration error, not an empty run, so the
+    # guard has to be here rather than on the strategy.
+    if: needs.discover.outputs.has-charts == 'true'
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.discover.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
-
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ inputs.role-to-assume }}
-          aws-region: ${{ inputs.aws-region }}
-          role-duration-seconds: 1200
-
-      - uses: aws-actions/amazon-ecr-login@v2
-        id: ecr
 
       # Pinned on purpose. helm 4.2.4 emits a blank line before `---` where
       # 4.2.3 does not, so an unpinned helm breaks consumers' snapshot tests
@@ -59,27 +125,38 @@ jobs:
         with:
           version: v3.16.3
 
-      - name: Lint the chart
+      - name: Lint
         env:
-          CHART_PATH: ${{ inputs.chart-path }}
+          CHART_PATH: ${{ matrix.path }}
         run: helm lint "$CHART_PATH"
 
       - name: Package
         env:
-          CHART_PATH: ${{ inputs.chart-path }}
-          VERSION: ${{ inputs.version }}
-        run: |
-          helm package "$CHART_PATH" \
-            --version "$VERSION" \
-            --app-version "$VERSION" \
-            --destination dist
+          CHART_PATH: ${{ matrix.path }}
+        run: helm package "$CHART_PATH" --destination dist
+
+      - name: Configure AWS credentials
+        if: inputs.push
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ inputs.role-to-assume }}
+          aws-region: ${{ inputs.aws-region }}
+          role-duration-seconds: 1200
+
+      - name: Log in to ECR
+        if: inputs.push
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
 
       - name: Push
         if: inputs.push
         env:
           REGISTRY: ${{ steps.ecr.outputs.registry }}
-          REPO_PREFIX: ${{ inputs.repo-prefix }}
+          CHART_NAME: ${{ matrix.name }}
+          CHART_VERSION: ${{ matrix.version }}
         run: |
           set -euo pipefail
-          chart=$(ls dist/*.tgz)
-          helm push "$chart" "oci://$REGISTRY/$REPO_PREFIX"
+          # helm push takes the repository name from the chart, so the target
+          # is the registry root and the artifact lands at <registry>/<name>.
+          helm push "dist/$CHART_NAME-$CHART_VERSION.tgz" "oci://$REGISTRY"
+          echo "Pushed \`$REGISTRY/$CHART_NAME:$CHART_VERSION\`" >> "$GITHUB_STEP_SUMMARY"
