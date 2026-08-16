@@ -23,15 +23,13 @@ on:
         default: true
 
 jobs:
+  # Build and deploy are separate jobs because the github-pages environment is
+  # branch-protected. A job that names it fails before it starts when the ref
+  # is not the default branch, which would take every pull request with it.
   build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -51,17 +49,26 @@ jobs:
         run: mdbook build
         working-directory: ${{ inputs.book-path }}
 
-      - name: Setup Pages
-        if: inputs.deploy
-        uses: actions/configure-pages@v6
-
       - name: Upload artifact
         if: inputs.deploy
         uses: actions/upload-pages-artifact@v5
         with:
           path: ${{ inputs.book-path }}/book
 
+  deploy:
+    if: inputs.deploy
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Setup Pages
+        uses: actions/configure-pages@v6
+
       - name: Deploy
         id: deployment
-        if: inputs.deploy
         uses: actions/deploy-pages@v5
