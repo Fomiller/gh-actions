@@ -2,7 +2,7 @@ name: actionlint
 
 on:
   pull_request:
-    paths: ['.github/workflows/**']
+    paths: ['.github/**']
 
 jobs:
   lint:
@@ -10,3 +10,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: rhysd/actionlint@main
+
+  next-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: .github/actions/next-version/test.sh

@@ -11,7 +11,10 @@ name: helm-ecr
 # repository name out of the packaged chart — appending at push time would make
 # the published chart disagree with what `helm template` renders locally.
 #
-# The chart version also comes from Chart.yaml, so there is no version input.
+# The chart version comes from Chart.yaml by default. Set release-versioning to
+# compute it from conventional commits instead; Chart.yaml then holds a
+# placeholder that CI overwrites before packaging, and the repo never carries a
+# version that disagrees with what was published.
 #
 # The role arn comes from the AWS_OIDC_ROLE_ARN secret, same as ecr.yaml and
 # terragrunt.yaml. Every chart lands in the same account, so making each caller
@@ -41,6 +44,20 @@ on:
         default: helm
       push:
         description: Push to ECR. Off means lint and package only.
+        required: false
+        type: boolean
+        default: false
+      release-versioning:
+        description: >-
+          Compute each chart's version from conventional commits instead of
+          reading it from Chart.yaml. The tag prefix is "<chart name>-v", so two
+          charts in one repo are two independent release streams, and neither
+          sees the image's tags. Only commits touching the chart's own directory
+          count toward its bump.
+
+          The first release of a stream publishes Chart.yaml's committed version
+          as-is rather than bumping it, so turning this on does not skip a
+          version on a chart that is already published.
         required: false
         type: boolean
         default: false
@@ -112,7 +129,7 @@ jobs:
           fi
 
   publish:
-    name: ${{ matrix.name }} ${{ matrix.version }}
+    name: ${{ matrix.name }}
     needs: discover
     # An empty matrix is a job configuration error, not an empty run, so the
     # guard has to be here rather than on the strategy.
@@ -120,12 +137,38 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
-      contents: read
+      # A computed version tags the repo. Read is enough without one, but a
+      # job's permissions are fixed before the inputs are known.
+      contents: write
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.discover.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # next-version reads the tag history to decide the bump.
+          fetch-depth: ${{ inputs.release-versioning && 0 || 1 }}
+
+      - name: Compute version
+        id: version
+        if: inputs.release-versioning
+        uses: Fomiller/gh-actions/.github/actions/next-version@main
+        with:
+          tag-prefix: ${{ matrix.name }}-v
+          paths: ${{ matrix.path }}
+          # Chart.yaml's committed version is where a stream with no tag starts.
+          seed: ${{ matrix.version }}
+
+      - name: Stamp Chart.yaml
+        if: steps.version.outputs.version != ''
+        env:
+          CHART_PATH: ${{ matrix.path }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          # appVersion tracks the chart version here. A chart in this repo ships
+          # its own service, so the two never diverge.
+          yq -i ".version = \"$VERSION\" | .appVersion = \"$VERSION\"" "$CHART_PATH/Chart.yaml"
 
       # Pinned on purpose. helm 4.2.4 emits a blank line before `---` where
       # 4.2.3 does not, so an unpinned helm breaks consumers' snapshot tests
@@ -158,14 +201,29 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Push
-        if: inputs.push
+        # A commit that is already released has nothing to publish. Lint and
+        # package still ran, so the chart is proven; only the push is skipped.
+        if: inputs.push && steps.version.outputs.released != 'true'
         env:
           REGISTRY: ${{ steps.ecr.outputs.registry }}
           CHART_NAME: ${{ matrix.name }}
-          CHART_VERSION: ${{ matrix.version }}
+          CHART_VERSION: ${{ steps.version.outputs.version || matrix.version }}
         run: |
           set -euo pipefail
           # helm push takes the repository name from the chart, so the target
           # is the registry root and the artifact lands at <registry>/<name>.
           helm push "dist/$CHART_NAME-$CHART_VERSION.tgz" "oci://$REGISTRY"
           echo "Pushed \`$REGISTRY/$CHART_NAME:$CHART_VERSION\`" >> "$GITHUB_STEP_SUMMARY"
+
+      # After the push, so a registry failure does not leave a tag claiming a
+      # release that is not there.
+      - name: Tag the release
+        if: inputs.push && steps.version.outputs.released == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git tag "$TAG"
+          git push origin "$TAG"
+          gh release create "$TAG" --title "$TAG" --generate-notes

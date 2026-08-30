@@ -1,0 +1,71 @@
+name: Next version
+description: >-
+  Compute the next semver for one release stream from conventional commits since
+  that stream's last tag, and report whether it is already released.
+
+inputs:
+  tag-prefix:
+    description: Tag prefix identifying the release stream, e.g. "blog-v".
+    required: true
+  rc:
+    description: Compute the next release candidate instead of the next stable.
+    required: false
+    default: "false"
+  seed:
+    description: Version to publish when the stream has no tag yet.
+    required: false
+    default: 0.1.0
+  paths:
+    description: >-
+      Newline-separated paths. Only commits touching them count toward the bump.
+      Empty counts every commit.
+    required: false
+    default: ""
+
+outputs:
+  version:
+    description: The computed version, e.g. 0.2.0.
+    value: ${{ steps.compute.outputs.version }}
+  tag:
+    description: The git tag for that version, prefix included.
+    value: ${{ steps.compute.outputs.tag }}
+  released:
+    description: >-
+      "true" when the tag already exists, meaning this commit has nothing new to
+      release. Callers should skip publishing rather than fail.
+    value: ${{ steps.compute.outputs.released }}
+
+runs:
+  using: composite
+  steps:
+    - id: compute
+      shell: bash
+      env:
+        TAG_PREFIX: ${{ inputs.tag-prefix }}
+        RC: ${{ inputs.rc }}
+        SEED: ${{ inputs.seed }}
+        PATHS: ${{ inputs.paths }}
+      run: |
+        set -euo pipefail
+
+        args=(--prefix "$TAG_PREFIX" --seed "$SEED")
+        [ "$RC" = "true" ] && args+=(--rc)
+        while IFS= read -r p; do
+          [ -n "$p" ] && args+=(--path "$p")
+        done <<< "$PATHS"
+
+        version="$("${{ github.action_path }}/next-version.sh" "${args[@]}")"
+        tag="${TAG_PREFIX}${version}"
+
+        if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+          released=true
+        else
+          released=false
+        fi
+
+        {
+          echo "version=$version"
+          echo "tag=$tag"
+          echo "released=$released"
+        } >> "$GITHUB_OUTPUT"
+        echo "$tag (already released: $released)" >> "$GITHUB_STEP_SUMMARY"
