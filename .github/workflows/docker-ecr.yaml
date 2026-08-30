@@ -46,6 +46,33 @@ on:
         required: false
         type: boolean
         default: false
+      release-tag-prefix:
+        description: >-
+          Turns on semver releases. The version is computed from conventional
+          commits since the last tag carrying this prefix, published as the only
+          image tag, and tagged in the repo as <prefix><version>.
+
+          Empty keeps the old behaviour: a short-sha tag and a moving `latest`.
+          That cannot work against an immutable ECR repository, because the
+          second push of `latest` is rejected.
+        required: false
+        type: string
+        default: ""
+      release-paths:
+        description: >-
+          Newline-separated paths. Only commits touching them count toward the
+          version bump. Empty counts every commit. Ignored unless
+          release-tag-prefix is set.
+        required: false
+        type: string
+        default: ""
+      release-seed:
+        description: >-
+          Version to publish the first time, before the stream has any tag.
+          Ignored unless release-tag-prefix is set.
+        required: false
+        type: string
+        default: 0.1.0
     outputs:
       image:
         description: The pushed image, digest included. Empty when push is off.
@@ -65,11 +92,26 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
-      contents: read
+      # A semver release tags the repo. Read is enough without one, but a job's
+      # permissions are fixed before the inputs are known.
+      contents: write
     outputs:
       image: ${{ steps.result.outputs.image }}
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # next-version reads the tag history to decide the bump.
+          fetch-depth: ${{ inputs.release-tag-prefix && 0 || 1 }}
+
+      - name: Compute version
+        id: version
+        if: inputs.release-tag-prefix != ''
+        uses: Fomiller/gh-actions/.github/actions/next-version@main
+        with:
+          tag-prefix: ${{ inputs.release-tag-prefix }}
+          paths: ${{ inputs.release-paths }}
+          seed: ${{ inputs.release-seed }}
 
       - name: Configure AWS credentials
         if: inputs.push
@@ -90,16 +132,36 @@ jobs:
           # falls back to a local one that is never pushed.
           REGISTRY: ${{ steps.ecr.outputs.registry || 'local' }}
           REPOSITORY: ${{ inputs.repository }}
+          VERSION: ${{ steps.version.outputs.version }}
+          ALREADY_RELEASED: ${{ steps.version.outputs.released }}
+          PUSH: ${{ inputs.push }}
         run: |
           set -euo pipefail
-          sha=$(git rev-parse --short HEAD)
+          push="$PUSH"
+          tags=()
+          if [ -n "$VERSION" ]; then
+            # One tag, and it never moves. That is the whole point of computing
+            # it: an immutable repository rejects a second push of any tag.
+            ref="$REGISTRY/$REPOSITORY:$VERSION"
+            tags+=("$ref")
+            # Re-running a commit that is already released would push a tag that
+            # exists. Build it, prove it still builds, push nothing.
+            if [ "$ALREADY_RELEASED" = "true" ]; then
+              push=false
+              echo "$ref is already released; building without pushing." >> "$GITHUB_STEP_SUMMARY"
+            fi
+          else
+            sha=$(git rev-parse --short HEAD)
+            ref="$REGISTRY/$REPOSITORY:$sha"
+            tags+=("$ref" "$REGISTRY/$REPOSITORY:latest")
+          fi
           {
             echo "tags<<EOF"
-            echo "$REGISTRY/$REPOSITORY:$sha"
-            echo "$REGISTRY/$REPOSITORY:latest"
+            printf '%s\n' "${tags[@]}"
             echo "EOF"
+            echo "ref=$ref"
+            echo "push=$push"
           } >> "$GITHUB_OUTPUT"
-          echo "ref=$REGISTRY/$REPOSITORY:$sha" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v3
         with:
@@ -111,13 +173,13 @@ jobs:
           context: ${{ inputs.context }}
           file: ${{ inputs.dockerfile }}
           platforms: ${{ inputs.platforms }}
-          push: ${{ inputs.push }}
+          push: ${{ steps.tags.outputs.push }}
           tags: ${{ steps.tags.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - id: result
-        if: inputs.push
+        if: steps.tags.outputs.push == 'true'
         env:
           REF: ${{ steps.tags.outputs.ref }}
           DIGEST: ${{ steps.build.outputs.digest }}
@@ -125,3 +187,16 @@ jobs:
           set -euo pipefail
           echo "image=$REF@$DIGEST" >> "$GITHUB_OUTPUT"
           echo "Pushed \`$REF\` (\`$DIGEST\`)" >> "$GITHUB_STEP_SUMMARY"
+
+      # After the push, so a registry failure does not leave a tag claiming a
+      # release that is not there.
+      - name: Tag the release
+        if: steps.tags.outputs.push == 'true' && steps.version.outputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git tag "$TAG"
+          git push origin "$TAG"
+          gh release create "$TAG" --title "$TAG" --generate-notes
