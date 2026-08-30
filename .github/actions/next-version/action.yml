@@ -48,6 +48,14 @@ runs:
       run: |
         set -euo pipefail
 
+        # A shallow clone has no tags, so every run would compute the seed and
+        # then fail to publish a version that already exists. Silent when it
+        # happens, so it is worth failing loudly here.
+        if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
+          echo "the checkout is shallow; this action needs fetch-depth: 0" >&2
+          exit 1
+        fi
+
         args=(--prefix "$TAG_PREFIX" --seed "$SEED")
         [ "$RC" = "true" ] && args+=(--rc)
         while IFS= read -r p; do

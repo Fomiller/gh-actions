@@ -157,8 +157,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # next-version reads the tag history to decide the bump.
-          fetch-depth: ${{ inputs.release-versioning && 0 || 1 }}
+          # next-version reads the tag history to decide the bump. Quoted: an
+          # unquoted 0 is falsy, so `&& 0 || 1` returns 1 and the clone comes
+          # back shallow with no tags to read.
+          fetch-depth: ${{ inputs.release-versioning && '0' || '1' }}
 
       - name: Compute version
         id: version
