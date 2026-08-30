@@ -17,9 +17,13 @@ on:
         required: true
         type: string
       role-to-assume:
-        description: IAM role ARN to assume for the ECR push.
-        required: true
+        description: >-
+          IAM role ARN to assume for the ECR push. Defaults to the
+          AWS_OIDC_ROLE_ARN secret, which is the right role for every repo in
+          the org. Pass one only to push to an account that is not ours.
+        required: false
         type: string
+        default: ""
       aws-region:
         required: false
         type: string
@@ -46,6 +50,11 @@ on:
       image:
         description: The pushed image, digest included. Empty when push is off.
         value: ${{ jobs.build.outputs.image }}
+    # Callers pass `secrets: inherit`. Declaring this is what lets actionlint
+    # check the `secrets.` reference below.
+    secrets:
+      AWS_OIDC_ROLE_ARN:
+        required: false
 
 permissions:
   contents: read
@@ -66,7 +75,7 @@ jobs:
         if: inputs.push
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ inputs.role-to-assume }}
+          role-to-assume: ${{ inputs.role-to-assume || secrets.AWS_OIDC_ROLE_ARN }}
           aws-region: ${{ inputs.aws-region }}
 
       - name: Log in to ECR
