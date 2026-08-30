@@ -13,9 +13,9 @@ name: helm-ecr
 #
 # The chart version also comes from Chart.yaml, so there is no version input.
 #
-# Unlike ecr.yaml, the role arn is an input rather than a secret. The chart
-# repo is per-service and the generated caller already knows its arn, so
-# there is nothing for a shared secret to hide.
+# The role arn comes from the AWS_OIDC_ROLE_ARN secret, same as ecr.yaml and
+# terragrunt.yaml. Every chart lands in the same account, so making each caller
+# name the role only meant the arn had to be rotated in every repo at once.
 #
 # The ECR repositories themselves are not created here. Terraform owns them.
 
@@ -23,9 +23,13 @@ on:
   workflow_call:
     inputs:
       role-to-assume:
-        description: IAM role ARN to assume for the ECR push.
-        required: true
+        description: >-
+          IAM role ARN to assume for the ECR push. Defaults to the
+          AWS_OIDC_ROLE_ARN secret, which is the right role for every repo in
+          the org. Pass one only to push to an account that is not ours.
+        required: false
         type: string
+        default: ""
       aws-region:
         required: false
         type: string
@@ -44,6 +48,11 @@ on:
       charts:
         description: JSON matrix of the discovered charts.
         value: ${{ jobs.discover.outputs.matrix }}
+    # Callers pass `secrets: inherit`. Declaring this is what lets actionlint
+    # check the `secrets.` reference below.
+    secrets:
+      AWS_OIDC_ROLE_ARN:
+        required: false
 
 permissions:
   contents: read
@@ -139,7 +148,7 @@ jobs:
         if: inputs.push
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ inputs.role-to-assume }}
+          role-to-assume: ${{ inputs.role-to-assume || secrets.AWS_OIDC_ROLE_ARN }}
           aws-region: ${{ inputs.aws-region }}
           role-duration-seconds: 1200
 
