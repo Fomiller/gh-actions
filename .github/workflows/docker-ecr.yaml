@@ -73,6 +73,18 @@ on:
         required: false
         type: string
         default: 0.1.0
+      release-rc:
+        description: >-
+          Cut a release candidate instead of a stable release: 0.2.0-rc.1, then
+          -rc.2, counting up until 0.2.0 itself is cut. The git tag is marked a
+          prerelease.
+
+          Meant for a workflow_dispatch off a feature branch, so a build can be
+          published and deployed before it merges. Ignored unless
+          release-tag-prefix is set.
+        required: false
+        type: boolean
+        default: false
     outputs:
       image:
         description: The pushed image, digest included. Empty when push is off.
@@ -112,6 +124,7 @@ jobs:
           tag-prefix: ${{ inputs.release-tag-prefix }}
           paths: ${{ inputs.release-paths }}
           seed: ${{ inputs.release-seed }}
+          rc: ${{ inputs.release-rc }}
 
       - name: Configure AWS credentials
         if: inputs.push
@@ -199,4 +212,5 @@ jobs:
           set -euo pipefail
           git tag "$TAG"
           git push origin "$TAG"
-          gh release create "$TAG" --title "$TAG" --generate-notes
+          gh release create "$TAG" --title "$TAG" --generate-notes \
+            ${{ inputs.release-rc && '--prerelease' || '' }}

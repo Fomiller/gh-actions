@@ -61,6 +61,17 @@ on:
         required: false
         type: boolean
         default: false
+      release-rc:
+        description: >-
+          Cut a release candidate instead of a stable release: 0.2.0-rc.1, then
+          -rc.2, counting up until 0.2.0 itself is cut. The git tag is marked a
+          prerelease.
+
+          Meant for a workflow_dispatch off a feature branch. Ignored unless
+          release-versioning is on.
+        required: false
+        type: boolean
+        default: false
     outputs:
       charts:
         description: JSON matrix of the discovered charts.
@@ -158,6 +169,7 @@ jobs:
           paths: ${{ matrix.path }}
           # Chart.yaml's committed version is where a stream with no tag starts.
           seed: ${{ matrix.version }}
+          rc: ${{ inputs.release-rc }}
 
       - name: Stamp Chart.yaml
         if: steps.version.outputs.version != ''
@@ -226,4 +238,5 @@ jobs:
           set -euo pipefail
           git tag "$TAG"
           git push origin "$TAG"
-          gh release create "$TAG" --title "$TAG" --generate-notes
+          gh release create "$TAG" --title "$TAG" --generate-notes \
+            ${{ inputs.release-rc && '--prerelease' || '' }}
