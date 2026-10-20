@@ -1,0 +1,131 @@
+# Keeps a consuming repo's golden files in sync with its repo.nix and pinned
+# packs. Callers run it on every push and PR with no path filter, so a
+# hand-edit to a generated file is caught too.
+#
+# drift-check is the check to watch. When it fails, regenerate pushes the fix
+# with a GitHub App token. Unlike a GITHUB_TOKEN push, that starts the caller's
+# workflows again, so drift-check reruns on the fixed commit and passes. The
+# rerun finds no drift and pushes nothing, which is what ends the loop.
+name: golden-generate
+
+on:
+  workflow_call:
+    inputs:
+      attic-cache:
+        description: attic cache name to pull from, e.g. homelab. Empty disables the cache
+        required: false
+        type: string
+        default: ''
+      attic-endpoint:
+        required: false
+        type: string
+        default: ''
+    secrets:
+      RENOVATE_APP_ID:
+        required: true
+      RENOVATE_APP_PRIVATE_KEY:
+        required: true
+      ATTIC_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  drift-check:
+    name: Drift Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Configure attic
+        if: inputs.attic-cache != ''
+        env:
+          ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
+          ATTIC_ENDPOINT: ${{ inputs.attic-endpoint }}
+          ATTIC_CACHE: ${{ inputs.attic-cache }}
+        run: |
+          nix profile install nixpkgs#attic-client
+          attic login cache "$ATTIC_ENDPOINT" "$ATTIC_TOKEN"
+          attic use "$ATTIC_CACHE"
+
+      # Renovate bumps the pin in flake.nix but not flake.lock.
+      - name: Re-lock flake inputs
+        run: nix flake lock
+
+      - name: Generate
+        run: nix run .#generate
+
+      # `git status`, not `git diff`: generation adds files, and `git diff`
+      # does not see an untracked file.
+      - name: Fail on drift
+        run: |
+          changes="$(git status --porcelain)"
+          if [ -n "$changes" ]; then
+            echo "$changes"
+            echo "::error::Golden files are out of date. Regenerate will push the fix to this branch. On a fork PR, run 'nix run .#generate' and commit."
+            exit 1
+          fi
+
+  regenerate:
+    name: Regenerate
+    needs: drift-check
+    # The App token is scoped to this repo, so it cannot push to a fork's branch.
+    if: >-
+      always() &&
+      needs.drift-check.result == 'failure' &&
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mint a write token for this repo
+        id: token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.RENOVATE_APP_ID }}
+          private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-workflows: write
+
+      # On a PR, ref_name is "<n>/merge", which is not a branch.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+          token: ${{ steps.token.outputs.token }}
+
+      - uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Configure attic
+        if: inputs.attic-cache != ''
+        env:
+          ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
+          ATTIC_ENDPOINT: ${{ inputs.attic-endpoint }}
+          ATTIC_CACHE: ${{ inputs.attic-cache }}
+        run: |
+          nix profile install nixpkgs#attic-client
+          attic login cache "$ATTIC_ENDPOINT" "$ATTIC_TOKEN"
+          attic use "$ATTIC_CACHE"
+
+      - name: Re-lock flake inputs
+        run: nix flake lock
+
+      - name: Generate
+        run: nix run .#generate
+
+      # Authored as github-actions[bot] because renovate-config lists that
+      # author in gitIgnoredAuthors, so Renovate keeps rebasing its own PRs.
+      - name: Commit regenerated files
+        env:
+          TARGET_REF: ${{ github.head_ref || github.ref_name }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Golden files already up to date."
+            exit 0
+          fi
+          git commit -m "chore: regenerate golden files"
+          git push origin "HEAD:${TARGET_REF}"
